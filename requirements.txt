@@ -1,0 +1,6 @@
+google-api-python-client
+google-auth-oauthlib
+nanobot-ai
+httpx
+linkedin-api
+python-dotenv
