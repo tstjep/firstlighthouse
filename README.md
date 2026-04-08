@@ -105,6 +105,8 @@ Score → rating: 0pts=1, 1pt=2, … 9+pts=10 (capped). LegaltechBrokers is skip
 **5. Find contact people**
 For each rated company, searches LinkedIn (via SerpAPI) for the Managing Partner, Head of Immigration, Partner, or Director and outputs a Waalaxy-compatible CSV for outreach. Role priorities are tuned per tab — LawFirms targets senior partners and immigration directors; Charities targets CEOs and service heads; LegaltechBrokers targets managing directors and consultants.
 
+If SerpAPI finds fewer than the threshold (default: 2) profiles for a company, it automatically falls back to querying LinkedIn's Voyager API using browser session cookies (`LINKEDIN_LI_AT` + `LINKEDIN_JSESSIONID` in `.env`).
+
 ---
 
 ## Setup
@@ -124,6 +126,13 @@ SERPAPI_KEY      = "<your-serpapi-key>"
 CREDENTIALS_FILE = "melt2.json"
 VERTEX_PROJECT   = "<your-gcp-project>"
 ```
+
+For the LinkedIn contact fallback, add to `.env`:
+```
+LINKEDIN_LI_AT=<your li_at cookie value>
+LINKEDIN_JSESSIONID=<your JSESSIONID cookie value>
+```
+Get these from browser DevTools → Application → Cookies while logged into linkedin.com.
 
 ### Set up / reset sheet formatting
 
@@ -169,6 +178,7 @@ venv/bin/python agents/immigration_contact_agent.py --tab Advisors --output cont
 venv/bin/python agents/immigration_contact_agent.py --tab LawFirms --min-rating 7   # high-quality only
 venv/bin/python agents/immigration_contact_agent.py --tab LawFirms --max-profiles 2 --limit 50
 venv/bin/python agents/immigration_contact_agent.py --tab LawFirms --dry-run        # preview only
+venv/bin/python agents/immigration_contact_agent.py --tab LawFirms --fallback-threshold 2  # LinkedIn fallback if <2 profiles
 ```
 
 ---

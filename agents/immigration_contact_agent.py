@@ -19,6 +19,15 @@ Usage:
     python agents/immigration_contact_agent.py --dry-run
     python agents/immigration_contact_agent.py --output contacts.csv
     python agents/immigration_contact_agent.py --limit 20
+    python agents/immigration_contact_agent.py --fallback-threshold 2   # LinkedIn fallback if <2 profiles found
+
+LinkedIn fallback:
+    When SerpAPI finds fewer than --fallback-threshold profiles for a company,
+    the agent queries LinkedIn's Voyager API using browser cookies to search
+    for employees in the correct roles. Set in .env:
+        LINKEDIN_LI_AT=<your li_at cookie>
+        LINKEDIN_JSESSIONID=<your JSESSIONID cookie>
+    Get these from browser DevTools → Application → Cookies on linkedin.com.
 
 Output: Waalaxy-compatible CSV on stdout (or --output file).
 """
@@ -28,11 +37,14 @@ import asyncio
 import csv
 import re
 import sys
+import time
 from pathlib import Path
 from urllib.parse import urlparse
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
+
+import httpx
 
 import config as cfg
 from tools.serp_tool import SerpSearchTool
@@ -133,6 +145,15 @@ _TAB_ROLE_QUERIES: dict[str, list[tuple[str, str]]] = {
 }
 
 _SEARCH_CONCURRENCY = 5
+_LINKEDIN_DELAY = 1.5  # seconds between LinkedIn API calls to avoid rate limiting
+
+# Role keywords per tab used for LinkedIn people search
+_TAB_LINKEDIN_ROLES: dict[str, list[str]] = {
+    "LawFirms":         ["Managing Partner", "Head of Immigration", "Partner", "Director"],
+    "Advisors":         ["Director", "Owner", "Head of Immigration", "Managing Director"],
+    "Charities":        ["CEO", "Director", "Chief Executive", "Head of"],
+    "LegaltechBrokers": ["Managing Director", "Consultant", "Partner", "Director"],
+}
 
 # ── Regex helpers ─────────────────────────────────────────────────────────────
 
@@ -483,6 +504,201 @@ async def _search_profiles_for_companies(
     return dict(results)
 
 
+# ── LinkedIn cookie-based API ─────────────────────────────────────────────────
+
+_LINKEDIN_BASE = "https://www.linkedin.com"
+_LINKEDIN_VOYAGER = f"{_LINKEDIN_BASE}/voyager/api"
+
+_COMPANY_SLUG_RE = re.compile(
+    r"linkedin\.com/company/([\w-]+)",
+    re.IGNORECASE,
+)
+
+
+def _linkedin_headers(li_at: str, jsessionid: str) -> dict:
+    """Build headers for LinkedIn Voyager API requests."""
+    token = jsessionid.strip('"')
+    return {
+        "Cookie": f'li_at={li_at}; JSESSIONID="{token}"',
+        "Csrf-Token": token,
+        "X-RestLi-Protocol-Version": "2.0.0",
+        "X-Li-Lang": "en_US",
+        "Accept": "application/json",
+        "User-Agent": (
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        ),
+    }
+
+
+def _extract_company_slug(linkedin_url: str) -> str | None:
+    """Extract company slug from a LinkedIn company URL."""
+    m = _COMPANY_SLUG_RE.search(linkedin_url)
+    return m.group(1) if m else None
+
+
+def _get_company_id(slug: str, headers: dict, timeout: float = 10.0) -> str | None:
+    """Resolve a LinkedIn company slug to its numeric entity ID via Voyager API.
+
+    Returns the string ID (e.g. "12345") or None on failure.
+    """
+    url = f"{_LINKEDIN_VOYAGER}/organization/companies"
+    params = {"q": "universalName", "universalName": slug}
+    try:
+        with httpx.Client(timeout=timeout) as client:
+            r = client.get(url, headers=headers, params=params)
+        if r.status_code != 200:
+            return None
+        data = r.json()
+        elements = data.get("elements", [])
+        if elements:
+            return str(elements[0].get("id", ""))
+    except Exception:
+        pass
+    return None
+
+
+def _parse_linkedin_people_response(data: dict) -> list[dict]:
+    """Extract profile dicts from a Voyager search/blended response."""
+    profiles: list[dict] = []
+    for item in data.get("elements", []):
+        # Voyager returns nested elements per cluster
+        for elem in item.get("elements", []):
+            entity = elem.get("targetUrn", "")
+            hit = elem.get("hitInfo", {})
+            mini = (
+                hit.get("com.linkedin.voyager.search.SearchProfile", {})
+                .get("miniProfile", {})
+            )
+            if not mini:
+                continue
+            first = mini.get("firstName", "")
+            last  = mini.get("lastName", "")
+            slug  = mini.get("publicIdentifier", "")
+            occupation = mini.get("occupation", "")
+
+            if not first and not last:
+                continue
+
+            url = f"https://www.linkedin.com/in/{slug}" if slug else ""
+            profiles.append({
+                "url":        url,
+                "first_name": first,
+                "last_name":  last,
+                "title_hint": occupation,
+                "source_url": "",
+            })
+    return profiles
+
+
+def _search_linkedin_people(
+    company_id: str,
+    role_keywords: list[str],
+    headers: dict,
+    max_results: int = 5,
+    timeout: float = 10.0,
+) -> list[dict]:
+    """Search LinkedIn for people at a company matching role keywords.
+
+    Uses the Voyager search/blended endpoint with a currentCompany filter.
+    """
+    keywords = " OR ".join(f'"{kw}"' for kw in role_keywords)
+    params = {
+        "count":        str(max_results),
+        "filters":      f"List(currentCompany->{company_id},resultType->PEOPLE)",
+        "keywords":     keywords,
+        "q":            "all",
+        "queryContext": "List(spellCorrectionEnabled->true)",
+        "start":        "0",
+    }
+    try:
+        with httpx.Client(timeout=timeout) as client:
+            r = client.get(
+                f"{_LINKEDIN_VOYAGER}/search/blended",
+                headers=headers,
+                params=params,
+            )
+        if r.status_code != 200:
+            return []
+        return _parse_linkedin_people_response(r.json())
+    except Exception:
+        return []
+
+
+def _merge_profiles(
+    existing: list[dict],
+    new_profiles: list[dict],
+    max_profiles: int,
+) -> list[dict]:
+    """Merge new profiles into existing list, deduplicating by URL and name."""
+    seen_urls  = {p["url"] for p in existing if p["url"]}
+    seen_names = {(p["first_name"].lower(), p["last_name"].lower()) for p in existing}
+    merged = list(existing)
+    for p in new_profiles:
+        if p["url"] and p["url"] in seen_urls:
+            continue
+        name_key = (p["first_name"].lower(), p["last_name"].lower())
+        if name_key in seen_names:
+            continue
+        if p["url"]:
+            seen_urls.add(p["url"])
+        seen_names.add(name_key)
+        merged.append(p)
+    merged.sort(key=lambda p: _role_priority(p["title_hint"]))
+    return merged[:max_profiles]
+
+
+def _run_linkedin_fallback(
+    gap_companies: list[dict],
+    company_profiles: dict[str, list[dict]],
+    tab: str,
+    li_at: str,
+    jsessionid: str,
+    max_profiles: int,
+) -> int:
+    """Run LinkedIn API fallback for companies below the profile threshold.
+
+    Mutates company_profiles in place. Returns number of companies enriched.
+    """
+    headers      = _linkedin_headers(li_at, jsessionid)
+    role_keywords = _TAB_LINKEDIN_ROLES.get(tab, _TAB_LINKEDIN_ROLES["LawFirms"])
+    enriched     = 0
+
+    for company in gap_companies:
+        name = company["name"]
+        slug = _extract_company_slug(company.get("linkedin", ""))
+        if not slug:
+            clean = _strip_legal_suffix(name).lower().replace(" ", "-")
+            slug  = clean
+
+        company_id = _get_company_id(slug, headers)
+        if not company_id:
+            print(f"    [linkedin] {name[:50]} — could not resolve company ID, skipping",
+                  file=sys.stderr)
+            continue
+
+        time.sleep(_LINKEDIN_DELAY)
+        new_profiles = _search_linkedin_people(
+            company_id, role_keywords, headers, max_results=max_profiles,
+        )
+
+        if new_profiles:
+            before = len(company_profiles.get(name, []))
+            company_profiles[name] = _merge_profiles(
+                company_profiles.get(name, []), new_profiles, max_profiles,
+            )
+            after = len(company_profiles[name])
+            added = after - before
+            print(f"    [linkedin] {name[:50]} — +{added} profile(s) "
+                  f"(total: {after})", file=sys.stderr)
+            if added:
+                enriched += 1
+        else:
+            print(f"    [linkedin] {name[:50]} — no profiles found", file=sys.stderr)
+
+    return enriched
+
+
 # ── CSV output ────────────────────────────────────────────────────────────────
 
 def _write_csv(
@@ -547,9 +763,17 @@ def main() -> None:
         "--output", "-o", default=None, metavar="FILE",
         help="Output CSV file path (default: stdout)",
     )
+    parser.add_argument(
+        "--fallback-threshold", type=int, default=2, metavar="N",
+        help="LinkedIn API fallback for companies with fewer than N profiles (default: 2, 0 = disabled)",
+    )
     args = parser.parse_args()
 
     credentials_file = str(PROJECT_ROOT / cfg.CREDENTIALS_FILE)
+
+    li_at      = cfg.LINKEDIN_LI_AT
+    jsessionid = cfg.LINKEDIN_JSESSIONID
+    has_linkedin_auth = bool(li_at and jsessionid)
 
     errors = []
     if not cfg.SPREADSHEET_ID:
@@ -610,6 +834,35 @@ def main() -> None:
         print("[contact] No profiles found for:", file=sys.stderr)
         for name in no_results:
             print(f"  - {name}", file=sys.stderr)
+
+    # LinkedIn API fallback for companies below the threshold
+    threshold = args.fallback_threshold
+    if threshold > 0:
+        gap_companies = [
+            c for c in companies
+            if len(company_profiles.get(c["name"], [])) < threshold
+        ]
+        if gap_companies and has_linkedin_auth:
+            print(f"\n[contact] LinkedIn fallback: {len(gap_companies)} companies "
+                  f"have fewer than {threshold} profiles, searching via LinkedIn API…",
+                  file=sys.stderr)
+            enriched = _run_linkedin_fallback(
+                gap_companies, company_profiles,
+                tab=args.tab,
+                li_at=li_at,
+                jsessionid=jsessionid,
+                max_profiles=args.max_profiles,
+            )
+            new_total = sum(len(ps) for ps in company_profiles.values())
+            print(f"[contact] LinkedIn fallback complete — "
+                  f"{enriched} companies enriched, "
+                  f"{new_total} total profiles (+{new_total - total_profiles})",
+                  file=sys.stderr)
+        elif gap_companies and not has_linkedin_auth:
+            print(f"\n[contact] {len(gap_companies)} companies have fewer than {threshold} "
+                  f"profiles but LinkedIn auth is not configured. "
+                  f"Set LINKEDIN_LI_AT and LINKEDIN_JSESSIONID in .env to enable fallback.",
+                  file=sys.stderr)
 
     if args.output:
         with open(args.output, "w", newline="", encoding="utf-8") as f:

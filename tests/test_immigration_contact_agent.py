@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from agents.immigration_contact_agent import (
     _ROLE_PRIORITY,
     _TAB_ROLE_QUERIES,
+    _TAB_LINKEDIN_ROLES,
     _CSV_HEADERS,
     _cell,
     _extract_domain,
@@ -27,6 +28,10 @@ from agents.immigration_contact_agent import (
     _build_fallback_queries,
     _read_and_filter,
     _write_csv,
+    _linkedin_headers,
+    _extract_company_slug,
+    _parse_linkedin_people_response,
+    _merge_profiles,
 )
 import config as cfg
 
@@ -508,3 +513,183 @@ class TestWriteCsv:
         buf = io.StringIO()
         rows = _write_csv(self._profiles(), self._companies(), buf)
         assert rows == 1
+
+
+# ── LinkedIn API helpers ──────────────────────────────────────────────────────
+
+class TestLinkedInHeaders:
+
+    def test_csrf_token_strips_quotes(self):
+        headers = _linkedin_headers("my_li_at", '"my_jsessionid"')
+        assert headers["Csrf-Token"] == "my_jsessionid"
+
+    def test_cookie_contains_li_at(self):
+        headers = _linkedin_headers("token123", "sess456")
+        assert "li_at=token123" in headers["Cookie"]
+
+    def test_cookie_contains_jsessionid(self):
+        headers = _linkedin_headers("token123", "sess456")
+        assert "JSESSIONID=" in headers["Cookie"]
+
+    def test_restli_protocol_version_set(self):
+        headers = _linkedin_headers("a", "b")
+        assert headers["X-RestLi-Protocol-Version"] == "2.0.0"
+
+
+class TestExtractCompanySlug:
+
+    def test_standard_url(self):
+        assert _extract_company_slug("https://www.linkedin.com/company/kingsley-napley") == "kingsley-napley"
+
+    def test_trailing_slash(self):
+        assert _extract_company_slug("https://linkedin.com/company/fragomen/") == "fragomen"
+
+    def test_url_with_subpath(self):
+        assert _extract_company_slug("https://linkedin.com/company/bindmans/about") == "bindmans"
+
+    def test_returns_none_for_invalid(self):
+        assert _extract_company_slug("https://example.com") is None
+        assert _extract_company_slug("") is None
+
+    def test_profile_url_returns_none(self):
+        assert _extract_company_slug("https://linkedin.com/in/sarah-jones") is None
+
+
+class TestParseLinkedinPeopleResponse:
+
+    def _make_response(self, people: list[dict]) -> dict:
+        """Build a minimal Voyager search/blended response."""
+        elements = []
+        for person in people:
+            elements.append({
+                "elements": [{
+                    "targetUrn": f"urn:li:member:{person.get('id', '123')}",
+                    "hitInfo": {
+                        "com.linkedin.voyager.search.SearchProfile": {
+                            "miniProfile": {
+                                "firstName": person.get("first_name", ""),
+                                "lastName":  person.get("last_name", ""),
+                                "publicIdentifier": person.get("slug", ""),
+                                "occupation": person.get("occupation", ""),
+                            }
+                        }
+                    }
+                }]
+            })
+        return {"elements": elements}
+
+    def test_parses_basic_profile(self):
+        data = self._make_response([{
+            "first_name": "Sarah", "last_name": "Jones",
+            "slug": "sarah-jones", "occupation": "Managing Partner",
+        }])
+        profiles = _parse_linkedin_people_response(data)
+        assert len(profiles) == 1
+        assert profiles[0]["first_name"] == "Sarah"
+        assert profiles[0]["last_name"] == "Jones"
+        assert profiles[0]["url"] == "https://www.linkedin.com/in/sarah-jones"
+        assert profiles[0]["title_hint"] == "Managing Partner"
+
+    def test_builds_linkedin_url_from_slug(self):
+        data = self._make_response([{
+            "first_name": "John", "last_name": "Smith",
+            "slug": "john-smith-abc", "occupation": "Partner",
+        }])
+        profiles = _parse_linkedin_people_response(data)
+        assert profiles[0]["url"] == "https://www.linkedin.com/in/john-smith-abc"
+
+    def test_skips_empty_names(self):
+        data = self._make_response([
+            {"first_name": "", "last_name": "", "slug": "nobody", "occupation": ""},
+        ])
+        profiles = _parse_linkedin_people_response(data)
+        assert profiles == []
+
+    def test_empty_response(self):
+        assert _parse_linkedin_people_response({}) == []
+        assert _parse_linkedin_people_response({"elements": []}) == []
+
+    def test_multiple_profiles(self):
+        data = self._make_response([
+            {"first_name": "Alice", "last_name": "Brown", "slug": "alice-b", "occupation": "Partner"},
+            {"first_name": "Bob",   "last_name": "Smith", "slug": "bob-s",   "occupation": "Director"},
+        ])
+        profiles = _parse_linkedin_people_response(data)
+        assert len(profiles) == 2
+
+    def test_no_slug_gives_empty_url(self):
+        data = self._make_response([{
+            "first_name": "Jane", "last_name": "Doe", "slug": "", "occupation": "CEO",
+        }])
+        profiles = _parse_linkedin_people_response(data)
+        assert profiles[0]["url"] == ""
+
+
+class TestMergeProfiles:
+
+    def _p(self, url: str, first: str, last: str, title: str = "") -> dict:
+        return {"url": url, "first_name": first, "last_name": last,
+                "title_hint": title, "source_url": ""}
+
+    def test_adds_new_profile(self):
+        existing = [self._p("https://linkedin.com/in/a", "A", "B", "Managing Partner")]
+        new = [self._p("https://linkedin.com/in/c", "C", "D", "Partner")]
+        merged = _merge_profiles(existing, new, max_profiles=5)
+        assert len(merged) == 2
+
+    def test_deduplicates_by_url(self):
+        url = "https://linkedin.com/in/sarah"
+        existing = [self._p(url, "Sarah", "Jones", "Managing Partner")]
+        new      = [self._p(url, "Sarah", "Jones", "Partner")]
+        merged = _merge_profiles(existing, new, max_profiles=5)
+        assert len(merged) == 1
+
+    def test_deduplicates_by_name(self):
+        existing = [self._p("https://linkedin.com/in/a", "Sarah", "Jones", "Partner")]
+        new      = [self._p("https://linkedin.com/in/b", "Sarah", "Jones", "Director")]
+        merged = _merge_profiles(existing, new, max_profiles=5)
+        assert len(merged) == 1
+
+    def test_respects_max_profiles(self):
+        existing = [self._p(f"https://linkedin.com/in/{i}", f"P{i}", "X") for i in range(3)]
+        new      = [self._p(f"https://linkedin.com/in/new{i}", f"N{i}", "Y") for i in range(3)]
+        merged = _merge_profiles(existing, new, max_profiles=4)
+        assert len(merged) == 4
+
+    def test_sorts_by_role_priority(self):
+        existing = [self._p("https://linkedin.com/in/a", "A", "B", "Senior Associate")]
+        new      = [self._p("https://linkedin.com/in/c", "C", "D", "Managing Partner")]
+        merged = _merge_profiles(existing, new, max_profiles=5)
+        assert merged[0]["title_hint"] == "Managing Partner"
+
+    def test_empty_existing(self):
+        new = [self._p("https://linkedin.com/in/a", "A", "B", "Partner")]
+        merged = _merge_profiles([], new, max_profiles=5)
+        assert len(merged) == 1
+
+    def test_empty_new(self):
+        existing = [self._p("https://linkedin.com/in/a", "A", "B", "Partner")]
+        merged = _merge_profiles(existing, [], max_profiles=5)
+        assert len(merged) == 1
+
+
+class TestTabLinkedinRoles:
+
+    def test_all_tabs_have_roles(self):
+        for tab in cfg.IMMIGRATION_TABS:
+            assert tab in _TAB_LINKEDIN_ROLES, f"Missing LinkedIn roles for tab {tab!r}"
+
+    def test_lawfirms_includes_managing_partner(self):
+        assert any("Managing Partner" in r for r in _TAB_LINKEDIN_ROLES["LawFirms"])
+
+    def test_advisors_includes_director_or_owner(self):
+        roles = _TAB_LINKEDIN_ROLES["Advisors"]
+        assert any("Director" in r or "Owner" in r for r in roles)
+
+    def test_charities_includes_ceo_or_director(self):
+        roles = _TAB_LINKEDIN_ROLES["Charities"]
+        assert any("CEO" in r or "Director" in r for r in roles)
+
+    def test_each_tab_has_multiple_roles(self):
+        for tab, roles in _TAB_LINKEDIN_ROLES.items():
+            assert len(roles) >= 2, f"Tab {tab!r} should have at least 2 role keywords"

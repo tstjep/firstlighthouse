@@ -18,3 +18,10 @@ DEFAULT_TAB      = "LawFirms"
 VERTEX_PROJECT  = "project-62f74cb6-5066-46e8-a01"
 VERTEX_LOCATION = "us-central1"
 DEFAULT_MODEL   = "vertex_ai/gemini-2.5-flash"
+
+# ── LinkedIn cookie auth (for contact finder fallback) ────────────────────────
+# Set these in .env or as environment variables.
+# Get li_at and JSESSIONID from browser DevTools → Application → Cookies
+# while logged into linkedin.com.
+LINKEDIN_LI_AT     = os.environ.get("LINKEDIN_LI_AT", "")
+LINKEDIN_JSESSIONID = os.environ.get("LINKEDIN_JSESSIONID", "")
