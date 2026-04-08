@@ -566,7 +566,6 @@ def _parse_linkedin_people_response(data: dict) -> list[dict]:
     for item in data.get("elements", []):
         # Voyager returns nested elements per cluster
         for elem in item.get("elements", []):
-            entity = elem.get("targetUrn", "")
             hit = elem.get("hitInfo", {})
             mini = (
                 hit.get("com.linkedin.voyager.search.SearchProfile", {})
@@ -752,7 +751,6 @@ def _write_csv(
     output,
 ) -> int:
     """Write Waalaxy-compatible CSV. Returns number of data rows written."""
-    import io
     writer = csv.writer(output, quoting=csv.QUOTE_MINIMAL)
     writer.writerow(_CSV_HEADERS)
 
@@ -789,8 +787,8 @@ def main() -> None:
         help=f"Sheet tab to read from (default: {cfg.DEFAULT_TAB})",
     )
     parser.add_argument(
-        "--min-rating", type=int, default=5,
-        help="Minimum numeric rating to include (default: 5)",
+        "--min-rating", type=int, default=8,
+        help="Minimum numeric rating to include (default: 8)",
     )
     parser.add_argument(
         "--max-profiles", type=int, default=3,
@@ -815,6 +813,10 @@ def main() -> None:
     parser.add_argument(
         "--no-sheet-write", action="store_true",
         help="Skip writing contacts back to column T of the sheet",
+    )
+    parser.add_argument(
+        "--force-linkedin-fallback", action="store_true",
+        help="Attempt LinkedIn API fallback even when credentials are not configured (will fail gracefully)",
     )
     args = parser.parse_args()
 
@@ -891,7 +893,11 @@ def main() -> None:
             c for c in companies
             if len(company_profiles.get(c["name"], [])) < threshold
         ]
-        if gap_companies and has_linkedin_auth:
+        run_fallback = has_linkedin_auth or args.force_linkedin_fallback
+        if gap_companies and run_fallback:
+            if not has_linkedin_auth:
+                print(f"\n[contact] --force-linkedin-fallback: attempting without credentials "
+                      f"(will fail gracefully)", file=sys.stderr)
             print(f"\n[contact] LinkedIn fallback: {len(gap_companies)} companies "
                   f"have fewer than {threshold} profiles, searching via LinkedIn API…",
                   file=sys.stderr)
@@ -907,7 +913,7 @@ def main() -> None:
                   f"{enriched} companies enriched, "
                   f"{new_total} total profiles (+{new_total - total_profiles})",
                   file=sys.stderr)
-        elif gap_companies and not has_linkedin_auth:
+        elif gap_companies and not run_fallback:
             print(f"\n[contact] {len(gap_companies)} companies have fewer than {threshold} "
                   f"profiles but LinkedIn auth is not configured. "
                   f"Set LINKEDIN_LI_AT and LINKEDIN_JSESSIONID in .env to enable fallback.",

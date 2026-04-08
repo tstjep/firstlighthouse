@@ -606,7 +606,7 @@ if __name__ == "__main__":
     parser.add_argument("--skip-done",    action="store_true", help="Skip rows already scanned")
     parser.add_argument("--retry-empty",  action="store_true", help="Re-scan rows where all signals came back No")
     parser.add_argument("--dry-run",      action="store_true", help="Print results without writing to sheet")
-    parser.add_argument("--min-rating",   type=int, default=5, metavar="N",
-                        help="Only process companies with rating >= N (default: 5, 0 = no filter)")
+    parser.add_argument("--min-rating",   type=int, default=8, metavar="N",
+                        help="Only process companies with rating >= N (default: 8, 0 = no filter)")
     args = parser.parse_args()
     asyncio.run(main(args.tab, skip_done=args.skip_done, dry_run=args.dry_run, retry_empty=args.retry_empty, min_rating=args.min_rating))
