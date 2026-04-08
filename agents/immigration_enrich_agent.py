@@ -60,6 +60,7 @@ _DOMAIN_RE   = re.compile(r"https?://(?:www\.)?([^/?#]+)")
 
 # Immigration sheet column indices (0-based) — same layout for all tabs
 _COL_COMPANY_NAME = 0  # A
+_COL_RATING       = 2  # C
 _COL_NOTES        = 3  # D
 _COL_WEBSITE      = 4  # E
 _COL_LINKEDIN     = 5  # F
@@ -161,13 +162,21 @@ def _validate_startup(credentials_file: str) -> None:
         sys.exit(1)
 
 
-def fetch_incomplete_rows(spreadsheet_id: str, credentials_file: str, tab: str) -> list[dict]:
+def fetch_incomplete_rows(
+    spreadsheet_id: str,
+    credentials_file: str,
+    tab: str,
+    min_rating: int = 0,
+) -> list[dict]:
     """Return rows that need enrichment using plain Python — no AI involved.
 
     A row needs enrichment when:
       - notes is empty  (agent-generated rows always have notes filled)
       - at least one of company_name / website / linkedin is non-empty
         (something to identify the company with)
+
+    min_rating: if > 0, skip rows with a confirmed numeric rating below this value.
+                Rows with no rating or a provisional ~N rating are always included.
     """
     try:
         creds = Credentials.from_service_account_file(credentials_file, scopes=_SCOPES)
@@ -195,11 +204,18 @@ def fetch_incomplete_rows(spreadsheet_id: str, credentials_file: str, tab: str) 
         notes        = cell(_COL_NOTES)
         website      = cell(_COL_WEBSITE)
         linkedin     = cell(_COL_LINKEDIN)
+        rating_raw   = cell(_COL_RATING)
 
         if notes:
             continue
         if not company_name and not website and not linkedin:
             continue
+        if min_rating > 0:
+            try:
+                if int(rating_raw) < min_rating:
+                    continue
+            except (ValueError, TypeError):
+                pass  # unrated / provisional ~N — include regardless
 
         incomplete.append({
             "row_index":    i,
@@ -379,15 +395,17 @@ async def _run_enrichment_chunk(
     return result
 
 
-async def main(tab: str, max_rows: int = 0) -> None:
+async def main(tab: str, max_rows: int = 0, min_rating: int = 0) -> None:
     credentials_file = str(PROJECT_ROOT / cfg.CREDENTIALS_FILE)
     _validate_startup(credentials_file)
 
     print("Starting company info enrichment agent")
     print(f"Tab:   {tab}")
     print(f"Sheet: {cfg.SPREADSHEET_ID}  tab: {tab}")
+    if min_rating > 0:
+        print(f"Min rating filter: {min_rating}+ (unrated rows always included)")
 
-    incomplete = fetch_incomplete_rows(cfg.SPREADSHEET_ID, credentials_file, tab)
+    incomplete = fetch_incomplete_rows(cfg.SPREADSHEET_ID, credentials_file, tab, min_rating=min_rating)
     if max_rows and len(incomplete) > max_rows:
         print(f"Rows needing enrichment: {len(incomplete)} (capped to {max_rows})")
         incomplete = incomplete[:max_rows]
@@ -452,5 +470,12 @@ if __name__ == "__main__":
         metavar="N",
         help="Cap the number of rows to enrich (0 = no limit)",
     )
+    parser.add_argument(
+        "--min-rating",
+        type=int,
+        default=0,
+        metavar="N",
+        help="Skip rows with a confirmed rating below N (0 = include all, unrated rows always included)",
+    )
     args = parser.parse_args()
-    asyncio.run(main(args.tab, args.max_rows))
+    asyncio.run(main(args.tab, args.max_rows, min_rating=args.min_rating))

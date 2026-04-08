@@ -62,11 +62,13 @@ COLUMNS = [
     ("HighVolume Source",           "Title/snippet/URL where HighVolume signal was found"),
     ("Growth Signal",               "Yes/No – actively hiring / expanding"),
     ("Growth Source",               "Title/snippet/URL where Growth signal was found"),
+    ("Contacts",                    "Decision-maker contacts: 'First Last | Role | linkedin_url' (one per line)"),
 ]
 
 # 0-based indices for signal boolean columns
 SIGNAL_BOOL_COLS   = [9, 11, 13, 15, 17]   # J, L, N, P, R
 SIGNAL_SOURCE_COLS = [10, 12, 14, 16, 18]  # K, M, O, Q, S
+COL_CONTACTS       = 19  # T
 
 # ── Colours ────────────────────────────────────────────────────────────────
 
@@ -102,6 +104,7 @@ COL_WIDTHS = {
     16: 380,   # HighVolume Source
     17: 90,    # Growth Signal
     18: 380,   # Growth Source
+    19: 340,   # Contacts
 }
 
 # ── Filter views ───────────────────────────────────────────────────────────
@@ -445,7 +448,7 @@ def setup_tab(spreadsheet_id: str, tab_name: str, credentials_path: str,
         valueInputOption="RAW",
         body={"values": headers},
     ).execute()
-    print(f"  Headers written ({num_cols} columns, A:S)")
+    print(f"  Headers written ({num_cols} columns, A:T)")
 
     # Apply formatting
     requests = build_requests(sheet_id=sheet_id, num_cols=num_cols)

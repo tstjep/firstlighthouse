@@ -54,7 +54,9 @@ from googleapiclient.discovery import build
 
 # ── Google Sheets ─────────────────────────────────────────────────────────────
 
-_SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+_SCOPES       = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+_SCOPES_WRITE = ["https://www.googleapis.com/auth/spreadsheets"]
+_COL_CONTACTS = 19  # T — "First Last | Role | URL" per person, newline-separated
 
 # Immigration sheet column indices (0-based, A:H)
 _COL_NAME    = 0  # A
@@ -699,6 +701,49 @@ def _run_linkedin_fallback(
     return enriched
 
 
+# ── Sheet contacts write ──────────────────────────────────────────────────────
+
+def _write_contacts_to_sheet(
+    company_profiles: dict[str, list[dict]],
+    companies: list[dict],
+    spreadsheet_id: str,
+    credentials_file: str,
+    tab: str,
+) -> int:
+    """Write found contacts to column T of the sheet. Returns number of rows updated."""
+    updates = []
+    for company in companies:
+        profiles = company_profiles.get(company["name"], [])
+        if not profiles:
+            continue
+        lines = []
+        for p in profiles:
+            first = p.get("first_name", "").strip()
+            last  = p.get("last_name", "").strip()
+            name  = f"{first} {last}".strip()
+            role  = p.get("title_hint", "").strip()
+            url   = p.get("url", "").strip()
+            parts = [x for x in [name, role, url] if x]
+            lines.append(" | ".join(parts))
+        cell_value = "\n".join(lines)
+        col_letter = "T"  # index 19
+        updates.append({
+            "range":  f"{tab}!{col_letter}{company['sheet_row']}",
+            "values": [[cell_value]],
+        })
+
+    if not updates:
+        return 0
+
+    creds   = Credentials.from_service_account_file(credentials_file, scopes=_SCOPES_WRITE)
+    service = build("sheets", "v4", credentials=creds)
+    service.spreadsheets().values().batchUpdate(
+        spreadsheetId=spreadsheet_id,
+        body={"valueInputOption": "USER_ENTERED", "data": updates},
+    ).execute()
+    return len(updates)
+
+
 # ── CSV output ────────────────────────────────────────────────────────────────
 
 def _write_csv(
@@ -766,6 +811,10 @@ def main() -> None:
     parser.add_argument(
         "--fallback-threshold", type=int, default=2, metavar="N",
         help="LinkedIn API fallback for companies with fewer than N profiles (default: 2, 0 = disabled)",
+    )
+    parser.add_argument(
+        "--no-sheet-write", action="store_true",
+        help="Skip writing contacts back to column T of the sheet",
     )
     args = parser.parse_args()
 
@@ -863,6 +912,16 @@ def main() -> None:
                   f"profiles but LinkedIn auth is not configured. "
                   f"Set LINKEDIN_LI_AT and LINKEDIN_JSESSIONID in .env to enable fallback.",
                   file=sys.stderr)
+
+    if not args.no_sheet_write and not args.dry_run:
+        updated = _write_contacts_to_sheet(
+            company_profiles, companies,
+            spreadsheet_id=cfg.SPREADSHEET_ID,
+            credentials_file=credentials_file,
+            tab=args.tab,
+        )
+        print(f"[contact] Wrote contacts to sheet column T for {updated} companies",
+              file=sys.stderr)
 
     if args.output:
         with open(args.output, "w", newline="", encoding="utf-8") as f:

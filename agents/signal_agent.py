@@ -310,12 +310,14 @@ def _read_companies(
     credentials_file: str,
     skip_done: bool,
     retry_empty: bool = False,
+    min_rating: int = 5,
 ) -> list[dict]:
     """Read all companies from the sheet. Returns list of dicts.
 
     skip_done:   skip rows already scanned (col J has Yes or No)
     retry_empty: override skip_done for rows where all 5 signals are No
                  (useful when scrape/fallback was unavailable on first run)
+    min_rating:  skip rows with a confirmed numeric rating below this value (default 5)
     """
     creds = Credentials.from_service_account_file(credentials_file, scopes=_SCOPES_READ)
     service = build("sheets", "v4", credentials=creds)
@@ -339,6 +341,14 @@ def _read_companies(
         website = cell(_COL_WEBSITE)
         if not website:
             continue  # nothing to search without a website
+
+        if min_rating > 0:
+            rating_raw = cell(_COL_RATING)
+            try:
+                if int(rating_raw) < min_rating:
+                    continue
+            except (ValueError, TypeError):
+                continue  # skip unrated / provisional ~N rows
 
         companies.append({
             "row_index":    i,
@@ -423,7 +433,7 @@ async def _write_company_signals(
 
 # ── Main ───────────────────────────────────────────────────────────────────
 
-async def main(tab: str, skip_done: bool = False, dry_run: bool = False, retry_empty: bool = False) -> None:
+async def main(tab: str, skip_done: bool = False, dry_run: bool = False, retry_empty: bool = False, min_rating: int = 5) -> None:
     credentials_file = str(PROJECT_ROOT / cfg.CREDENTIALS_FILE)
 
     print("=" * 60)
@@ -441,7 +451,7 @@ async def main(tab: str, skip_done: bool = False, dry_run: bool = False, retry_e
     # ── Read companies ─────────────────────────────────────────────────────
     print("\n[1/3] Reading companies from sheet...")
     try:
-        companies = _read_companies(tab, credentials_file, skip_done, retry_empty=retry_empty)
+        companies = _read_companies(tab, credentials_file, skip_done, retry_empty=retry_empty, min_rating=min_rating)
     except Exception as exc:
         print(f"[error] Could not read sheet: {exc}")
         return
@@ -596,5 +606,7 @@ if __name__ == "__main__":
     parser.add_argument("--skip-done",    action="store_true", help="Skip rows already scanned")
     parser.add_argument("--retry-empty",  action="store_true", help="Re-scan rows where all signals came back No")
     parser.add_argument("--dry-run",      action="store_true", help="Print results without writing to sheet")
+    parser.add_argument("--min-rating",   type=int, default=5, metavar="N",
+                        help="Only process companies with rating >= N (default: 5, 0 = no filter)")
     args = parser.parse_args()
-    asyncio.run(main(args.tab, skip_done=args.skip_done, dry_run=args.dry_run, retry_empty=args.retry_empty))
+    asyncio.run(main(args.tab, skip_done=args.skip_done, dry_run=args.dry_run, retry_empty=args.retry_empty, min_rating=args.min_rating))
