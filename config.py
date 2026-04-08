@@ -11,7 +11,7 @@ CREDENTIALS_FILE = "melt2.json"
 
 # Immigration finder spreadsheet — one tab per company type
 SPREADSHEET_ID  = "1L5yf4yREvRJpcWlrWb55-HPTMRERhCDCL7X22DPWDBE"
-IMMIGRATION_TABS = ["LawFirms", "Advisors", "Consultants", "LegaltechBrokers"]
+IMMIGRATION_TABS = ["LawFirms", "Advisors", "LegaltechBrokers", "Charities"]
 DEFAULT_TAB      = "LawFirms"
 
 # ── LLM provider — Vertex AI (service account in CREDENTIALS_FILE) ────────────

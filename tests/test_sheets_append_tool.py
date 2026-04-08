@@ -74,7 +74,7 @@ class TestSheetsAppendToolDedup:
 
 class TestSheetsAppendToolRowStructure:
 
-    def test_row_has_nine_columns(self):
+    def test_row_has_nineteen_columns(self):
         tool, svc = _make_tool()
         asyncio.run(tool.execute(
             company_name="Test Ltd",
@@ -87,7 +87,7 @@ class TestSheetsAppendToolRowStructure:
         append_call = svc.spreadsheets.return_value.values.return_value.append
         body = append_call.call_args.kwargs["body"]
         row = body["values"][0]
-        assert len(row) == 9
+        assert len(row) == 19
 
     def test_row_columns_in_correct_order(self):
         tool, svc = _make_tool()
@@ -127,7 +127,7 @@ class TestSheetsAppendToolRowStructure:
         asyncio.run(tool.execute(company_name="Adviser Ltd", website="https://adviser.co.uk"))
         append_call = svc.spreadsheets.return_value.values.return_value.append
         kwargs = append_call.call_args.kwargs
-        assert kwargs["range"] == "Advisors!A:I"
+        assert kwargs["range"] == "Advisors!A:S"
 
 
 class TestSheetsAppendToolDomainKey:

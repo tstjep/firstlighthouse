@@ -25,26 +25,30 @@ class TestTabSearchHints:
         for tab in cfg.IMMIGRATION_TABS:
             assert tab in TAB_SEARCH_HINTS, f"Missing hints for tab {tab!r}"
 
-    @pytest.mark.parametrize("tab", ["LawFirms", "Advisors", "Consultants", "LegaltechBrokers"])
+    @pytest.mark.parametrize("tab", ["LawFirms", "Advisors", "LegaltechBrokers", "Charities"])
     def test_required_keys_present(self, tab):
         hints = TAB_SEARCH_HINTS[tab]
         for key in ("description", "tld_queries", "extra_queries"):
             assert key in hints, f"Missing key {key!r} for tab {tab!r}"
 
-    @pytest.mark.parametrize("tab", ["LawFirms", "Advisors", "Consultants", "LegaltechBrokers"])
+    @pytest.mark.parametrize("tab", ["LawFirms", "Advisors", "LegaltechBrokers"])
     def test_tld_queries_target_co_uk(self, tab):
         for q in TAB_SEARCH_HINTS[tab]["tld_queries"]:
             assert "site:.co.uk" in q, f"TLD query must target site:.co.uk: {q!r}"
 
-    @pytest.mark.parametrize("tab", ["LawFirms", "Advisors", "Consultants", "LegaltechBrokers"])
+    def test_charities_tld_queries_target_org_uk(self):
+        for q in TAB_SEARCH_HINTS["Charities"]["tld_queries"]:
+            assert "site:.org.uk" in q, f"Charities TLD query must target site:.org.uk: {q!r}"
+
+    @pytest.mark.parametrize("tab", ["LawFirms", "Advisors", "LegaltechBrokers", "Charities"])
     def test_has_at_least_five_tld_queries(self, tab):
         assert len(TAB_SEARCH_HINTS[tab]["tld_queries"]) >= 5
 
-    @pytest.mark.parametrize("tab", ["LawFirms", "Advisors", "Consultants", "LegaltechBrokers"])
+    @pytest.mark.parametrize("tab", ["LawFirms", "Advisors", "LegaltechBrokers", "Charities"])
     def test_has_at_least_five_extra_queries(self, tab):
         assert len(TAB_SEARCH_HINTS[tab]["extra_queries"]) >= 5
 
-    @pytest.mark.parametrize("tab", ["LawFirms", "Advisors", "Consultants", "LegaltechBrokers"])
+    @pytest.mark.parametrize("tab", ["LawFirms", "Advisors", "LegaltechBrokers", "Charities"])
     def test_description_is_non_empty_string(self, tab):
         desc = TAB_SEARCH_HINTS[tab]["description"]
         assert isinstance(desc, str) and len(desc) > 0
@@ -57,13 +61,13 @@ class TestTabSearchHints:
         queries = " ".join(TAB_SEARCH_HINTS["Advisors"]["tld_queries"])
         assert "oisc" in queries.lower()
 
-    def test_consultants_mentions_immigration(self):
-        queries = " ".join(TAB_SEARCH_HINTS["Consultants"]["tld_queries"])
-        assert "immigration" in queries.lower()
+    def test_charities_mentions_refugee_or_asylum(self):
+        queries = " ".join(TAB_SEARCH_HINTS["Charities"]["tld_queries"])
+        assert "refugee" in queries.lower() or "asylum" in queries.lower()
 
-    def test_legaltechbrokers_mentions_software_or_technology(self):
-        queries = " ".join(TAB_SEARCH_HINTS["LegaltechBrokers"]["tld_queries"])
-        assert "software" in queries.lower() or "technology" in queries.lower()
+    def test_legaltechbrokers_mentions_consultant_or_partner(self):
+        queries = " ".join(TAB_SEARCH_HINTS["LegaltechBrokers"]["tld_queries"] + TAB_SEARCH_HINTS["LegaltechBrokers"]["extra_queries"])
+        assert "consultant" in queries.lower() or "partner" in queries.lower()
 
 
 # ── SERP_PARAMS ───────────────────────────────────────────────────────────────
@@ -79,40 +83,47 @@ class TestSerpParams:
 
 class TestBuildTask:
 
-    @pytest.mark.parametrize("tab", ["LawFirms", "Advisors", "Consultants", "LegaltechBrokers"])
+    @pytest.mark.parametrize("tab", ["LawFirms", "Advisors", "LegaltechBrokers", "Charities"])
     def test_contains_description(self, tab):
         task = build_task(tab)
         assert TAB_SEARCH_HINTS[tab]["description"] in task
 
-    @pytest.mark.parametrize("tab", ["LawFirms", "Advisors", "Consultants", "LegaltechBrokers"])
+    @pytest.mark.parametrize("tab", ["LawFirms", "Advisors", "LegaltechBrokers", "Charities"])
     def test_contains_tld_queries(self, tab):
         task = build_task(tab)
         for q in TAB_SEARCH_HINTS[tab]["tld_queries"]:
             assert q in task, f"TLD query missing from task: {q!r}"
 
-    @pytest.mark.parametrize("tab", ["LawFirms", "Advisors", "Consultants", "LegaltechBrokers"])
+    @pytest.mark.parametrize("tab", ["LawFirms", "Advisors", "LegaltechBrokers", "Charities"])
     def test_contains_extra_queries(self, tab):
         task = build_task(tab)
         for q in TAB_SEARCH_HINTS[tab]["extra_queries"]:
             assert q in task, f"Extra query missing from task: {q!r}"
 
-    @pytest.mark.parametrize("tab", ["LawFirms", "Advisors", "Consultants", "LegaltechBrokers"])
+    @pytest.mark.parametrize("tab", ["LawFirms", "Advisors", "LegaltechBrokers", "Charities"])
     def test_instructs_to_call_sheets_append(self, tab):
         assert "sheets_append_company" in build_task(tab)
 
-    @pytest.mark.parametrize("tab", ["LawFirms", "Advisors", "Consultants", "LegaltechBrokers"])
+    @pytest.mark.parametrize("tab", ["LawFirms", "Advisors", "LegaltechBrokers", "Charities"])
     def test_no_dedup_data_embedded(self, tab):
         task = build_task(tab)
         assert "existing_names" not in task
         assert "existing_domains" not in task
 
-    @pytest.mark.parametrize("tab", ["LawFirms", "Advisors", "Consultants", "LegaltechBrokers"])
+    @pytest.mark.parametrize("tab", ["LawFirms", "Advisors", "Charities"])
     def test_mentions_uk_cities(self, tab):
+        # LegaltechBrokers are nationwide — no city-based queries needed
         task = build_task(tab)
         assert "London" in task
         assert "Manchester" in task
 
-    @pytest.mark.parametrize("tab", ["LawFirms", "Advisors", "Consultants", "LegaltechBrokers"])
+    def test_legaltech_task_mentions_uk(self):
+        assert "UK" in build_task("LegaltechBrokers")
+
+    def test_charities_task_mentions_charity(self):
+        assert "charit" in build_task("Charities").lower()
+
+    @pytest.mark.parametrize("tab", ["LawFirms", "Advisors", "LegaltechBrokers", "Charities"])
     def test_task_is_non_empty_string(self, tab):
         task = build_task(tab)
         assert isinstance(task, str) and len(task) > 100

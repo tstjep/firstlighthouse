@@ -1,0 +1,16 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+.dotenv
+
+# Google service account credentials — never commit these
+*.json
+
+# nanobot runtime state
+memory/
+.claude/
+sessions/
+serp_cache/

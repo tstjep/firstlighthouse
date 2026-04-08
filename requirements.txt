@@ -4,3 +4,4 @@ nanobot-ai
 httpx
 linkedin-api
 python-dotenv
+pytest

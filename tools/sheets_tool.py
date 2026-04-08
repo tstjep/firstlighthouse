@@ -3,16 +3,26 @@
 Appends company rows to an immigration leads tab in the lead-tracking spreadsheet.
 Only fills the Company Info columns (A-H); further columns reserved for later agents.
 
-Sheet columns (0-based):
+Sheet columns (0-based, A:S = 19 cols):
   0  A  Company Name
-  1  B  Comment Melt       (internal, left blank by agent)
-  2  C  Rating             (manual, left blank by agent)
+  1  B  Comment LawFairy   (internal, left blank by agent)
+  2  C  Rating             (written by rating agent)
   3  D  Notes
   4  E  Website
   5  F  LinkedIn
   6  G  Size
   7  H  HQ Location
   8  I  Date Added
+  9  J  CorporateImmigration Signal  (Yes/No — filled by signal agent)
+  10 K  CorporateImmigration Source
+  11 L  TechForward Signal
+  12 M  TechForward Source
+  13 N  MultiVisa Signal
+  14 O  MultiVisa Source
+  15 P  HighVolume Signal
+  16 Q  HighVolume Source
+  17 R  Growth Signal
+  18 S  Growth Source
 """
 
 from datetime import date
@@ -132,7 +142,7 @@ class SheetsAppendTool(Tool):
 
         row = [
             company_name,              # A – Company Name
-            "",                        # B – Comment Melt
+            "",                        # B – Comment LawFairy
             "",                        # C – Rating
             notes,                     # D – Notes
             website,                   # E – Website
@@ -140,15 +150,20 @@ class SheetsAppendTool(Tool):
             size,                      # G – Size
             hq_location,               # H – HQ Location
             date.today().isoformat(),  # I – Date Added
+            "", "",                    # J–K  CorporateImmigration signal / source
+            "", "",                    # L–M  TechForward signal / source
+            "", "",                    # N–O  MultiVisa signal / source
+            "", "",                    # P–Q  HighVolume signal / source
+            "", "",                    # R–S  Growth signal / source
         ]
 
         try:
             service = self._get_service()
             service.spreadsheets().values().append(
                 spreadsheetId=self._spreadsheet_id,
-                range=f"{self._sheet_name}!A:I",
+                range=f"{self._sheet_name}!A:S",
                 valueInputOption="USER_ENTERED",
-                insertDataOption="INSERT_ROWS",
+                insertDataOption="OVERWRITE",
                 body={"values": [row]},
             ).execute()
         except Exception as exc:
