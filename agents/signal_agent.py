@@ -123,10 +123,13 @@ Your job is to detect five buying signals for each company:
                 "specialist immigration", "dedicated immigration", firm name contains
                 "immigration", "only immigration", "exclusively immigration",
                 "boutique immigration", site is entirely about immigration services.
-                Negative signals: firm lists many unrelated practice areas (conveyancing,
-                family law, criminal, employment, PI etc.) alongside immigration —
-                these are general practices where immigration is just one department.
+                Negative signals: firm lists unrelated practice areas alongside immigration:
+                conveyancing, property, family law, divorce, criminal, employment,
+                personal injury, wills, probate, commercial litigation, corporate law.
                 Mark Yes only when immigration is clearly the firm's main focus.
+                For source when detected=false: if you found unrelated practice areas,
+                name them (e.g. "general practice: conveyancing, family law, criminal");
+                if truly no information found, write "not found".
 
   multivisa   → handles 3 or more distinct visa types
                 Count mentions of: family visa, spouse visa, student visa, investor visa,
@@ -149,7 +152,8 @@ Rules:
 - Be conservative — only mark Yes if the evidence is clear.
 - For Yes: source must be the exact title or snippet excerpt containing the keyword,
            followed by the page URL in brackets, e.g. "Skilled Worker Visa services (https://example.co.uk/services)".
-- For No:  source must be "not found".
+- For No:  source must be "not found" — except for specialist, where if you detected
+           unrelated practice areas, name them: "general practice: conveyancing, family law".
 - If search_results is empty or null, mark all signals No with source "no website".
 
 Return a JSON array (one object per company):
