@@ -38,7 +38,7 @@ Usage
   python agents/immigration_rating_agent.py
   python agents/immigration_rating_agent.py --tab Advisors
   python agents/immigration_rating_agent.py --tab LawFirms --force
-  python agents/immigration_rating_agent.py --no-llm   # rule-based only
+  python agents/immigration_rating_agent.py --llm   # also rate rows without signals (provisional ~N)
 """
 
 import argparse
@@ -285,19 +285,19 @@ async def run_async(tab: str, force: bool = False, use_llm: bool = True) -> None
         print(f"[rating] Skipped {skipped} already-rated rows. Use --force to re-rate.")
 
 
-def run(tab: str, force: bool = False, use_llm: bool = True) -> None:
+def run(tab: str, force: bool = False, use_llm: bool = False) -> None:
     asyncio.run(run_async(tab, force=force, use_llm=use_llm))
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Rate immigration leads 1–5.")
+    parser = argparse.ArgumentParser(description="Rate immigration leads 1–10.")
     parser.add_argument(
         "--tab",
         choices=cfg.IMMIGRATION_TABS,
         default=cfg.DEFAULT_TAB,
         help=f"Sheet tab to rate (default: {cfg.DEFAULT_TAB})",
     )
-    parser.add_argument("--force",  action="store_true", help="Re-rate all rows including confirmed ratings")
-    parser.add_argument("--no-llm", action="store_true", help="Rule-based only, skip LLM fallback")
+    parser.add_argument("--force", action="store_true", help="Re-rate all rows including confirmed ratings")
+    parser.add_argument("--llm",   action="store_true", help="Enable LLM fallback for rows without signals (provisional ~N rating)")
     args = parser.parse_args()
-    run(args.tab, force=args.force, use_llm=not args.no_llm)
+    run(args.tab, force=args.force, use_llm=args.llm)
