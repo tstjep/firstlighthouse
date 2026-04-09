@@ -403,13 +403,19 @@ async def _write_company_signals(
     company_result: dict,
     tool: SheetsUpdateSignalTool,
     dry_run: bool,
+    only_signals: set[str] | None = None,
 ) -> dict[str, bool]:
-    """Write all 5 signals for one company immediately. Returns {signal: detected}."""
+    """Write signals for one company immediately. Returns {signal: detected}.
+
+    only_signals: if set, only write those signal columns (others untouched).
+    """
     row_idx = company_result.get("row_index")
     signals = company_result.get("signals", {})
     written: dict[str, bool] = {}
 
     for signal_name in VALID_SIGNALS:
+        if only_signals and signal_name not in only_signals:
+            continue
         sig      = signals.get(signal_name, {})
         detected = bool(sig.get("detected", False))
         source   = sig.get("source", "not found") or "not found"
@@ -435,7 +441,7 @@ async def _write_company_signals(
 
 # ── Main ───────────────────────────────────────────────────────────────────
 
-async def main(tab: str, skip_done: bool = False, dry_run: bool = False, retry_empty: bool = False, min_rating: int = 5, max_rows: int = 0) -> None:
+async def main(tab: str, skip_done: bool = False, dry_run: bool = False, retry_empty: bool = False, min_rating: int = 5, max_rows: int = 0, only_signals: set[str] | None = None) -> None:
     credentials_file = str(PROJECT_ROOT / cfg.CREDENTIALS_FILE)
 
     print("=" * 60)
@@ -444,6 +450,8 @@ async def main(tab: str, skip_done: bool = False, dry_run: bool = False, retry_e
     print(f"Skip done:   {skip_done}")
     print(f"Retry empty: {retry_empty}")
     print(f"Dry-run:     {dry_run}")
+    if only_signals:
+        print(f"Only signals: {', '.join(sorted(only_signals))}")
     print("=" * 60)
 
     if not _tab_supports_signals(tab):
@@ -453,7 +461,9 @@ async def main(tab: str, skip_done: bool = False, dry_run: bool = False, retry_e
     # ── Read companies ─────────────────────────────────────────────────────
     print("\n[1/3] Reading companies from sheet...")
     try:
-        companies = _read_companies(tab, credentials_file, skip_done, retry_empty=retry_empty, min_rating=min_rating)
+        # When rewriting only specific signals, process all rows regardless of scan state
+        effective_skip_done = skip_done and not only_signals
+        companies = _read_companies(tab, credentials_file, effective_skip_done, retry_empty=retry_empty, min_rating=min_rating)
         if max_rows and len(companies) > max_rows:
             print(f"  → capping to {max_rows} rows (--max-rows)")
             companies = companies[:max_rows]
@@ -570,7 +580,7 @@ async def main(tab: str, skip_done: bool = False, dry_run: bool = False, retry_e
 
         # Step 3: write to sheet immediately
         try:
-            written = await _write_company_signals(result, tool, dry_run)
+            written = await _write_company_signals(result, tool, dry_run, only_signals=only_signals)
             yes_signals = [s for s, v in written.items() if v]
             print(f"  [sheets] wrote — signals: {', '.join(yes_signals) if yes_signals else 'none'}")
         except Exception as exc:
@@ -613,7 +623,17 @@ if __name__ == "__main__":
     parser.add_argument("--dry-run",      action="store_true", help="Print results without writing to sheet")
     parser.add_argument("--min-rating",   type=int, default=8, metavar="N",
                         help="Only process companies with rating >= N (default: 8, 0 = no filter)")
-    parser.add_argument("--max-rows",     type=int, default=0, metavar="N",
+    parser.add_argument("--max-rows",      type=int, default=0, metavar="N",
                         help="Cap number of companies to process (0 = no limit)")
+    parser.add_argument("--only-signals",  default=None, metavar="SIGNALS",
+                        help=f"Comma-separated signals to rewrite, others untouched. "
+                             f"Valid: {', '.join(sorted(VALID_SIGNALS))}. "
+                             f"Processes all rows (ignores --skip-done).")
     args = parser.parse_args()
-    asyncio.run(main(args.tab, skip_done=args.skip_done, dry_run=args.dry_run, retry_empty=args.retry_empty, min_rating=args.min_rating, max_rows=args.max_rows))
+    only_signals = None
+    if args.only_signals:
+        only_signals = {s.strip() for s in args.only_signals.split(",")}
+        invalid = only_signals - set(VALID_SIGNALS)
+        if invalid:
+            parser.error(f"Unknown signal(s): {', '.join(sorted(invalid))}. Valid: {', '.join(sorted(VALID_SIGNALS))}")
+    asyncio.run(main(args.tab, skip_done=args.skip_done, dry_run=args.dry_run, retry_empty=args.retry_empty, min_rating=args.min_rating, max_rows=args.max_rows, only_signals=only_signals))

@@ -31,7 +31,7 @@ Each company is automatically checked for five buying signals. The more signals 
 | Signal | What it means for sales |
 |--------|------------------------|
 | **Corporate** | Does employer/sponsor licence work — the core use case for LawFairy |
-| **Tech** | Already has a client portal or online case tracking — they understand the value of software |
+| **Specialist** | Immigration is the firm's primary or sole practice area (not one department in a general firm) |
 | **MultiVisa** | Handles many visa types — more complexity, more to gain from case management |
 | **HighVolume** | Large team or high caseload — more cases = more pain without good software |
 | **Growth** | Hiring, opening offices, expanding — actively investing in the business |
@@ -45,8 +45,6 @@ Each company is automatically checked for five buying signals. The more signals 
 | 4–5 | Solid — general immigration work, lower urgency |
 | 2–3 | Weak — small, niche, or limited information |
 | 1 | Unknown — not enough data yet |
-
-Ratings marked `~N` (e.g. `~6`) are provisional estimates made before the full signal scan — treat as indicative only.
 
 ### Sheet columns
 
@@ -62,10 +60,11 @@ Ratings marked `~N` (e.g. `~6`) are provisional estimates made before the full s
 | H | HQ location |
 | I | Date added |
 | J–K | Corporate signal (Yes/No) + evidence URL |
-| L–M | Tech signal + evidence URL |
+| L–M | Specialist signal + evidence URL |
 | N–O | MultiVisa signal + evidence URL |
 | P–Q | HighVolume signal + evidence URL |
 | R–S | Growth signal + evidence URL |
+| T | Contacts — found decision-makers, one per line: `First Last \| Role \| linkedin_url` |
 
 ---
 
@@ -88,13 +87,13 @@ For each company, collects evidence from three sources in order:
 An LLM then reads the collected text and decides Yes/No for each of the five signals, with a source URL for manual verification. LegaltechBrokers is skipped — signals are not relevant for partners.
 
 **4. Rate each company 1–10**
-Rule-based scoring from detected signals — no LLM needed once signals are present. If signals haven't been run yet, an LLM estimates a provisional rating from the company description alone (marked `~N`).
+Rule-based scoring from detected signals — no LLM needed. Rows without signals are skipped (run signal detection first).
 
 | Points | Source |
 |--------|--------|
 | +3 | Corporate signal = Yes |
 | +3 | HighVolume signal = Yes |
-| +2 | Tech signal = Yes |
+| +2 | Specialist signal = Yes |
 | +2 | MultiVisa signal = Yes |
 | +1 | Growth signal = Yes |
 | +1 | Size in sweet spot (1–200 staff) |
@@ -103,7 +102,9 @@ Rule-based scoring from detected signals — no LLM needed once signals are pres
 Score → rating: 0pts=1, 1pt=2, … 9+pts=10 (capped). LegaltechBrokers is skipped.
 
 **5. Find contact people**
-For each rated company, searches LinkedIn (via SerpAPI) for the Managing Partner, Head of Immigration, Partner, or Director and outputs a Waalaxy-compatible CSV for outreach. Role priorities are tuned per tab — LawFirms targets senior partners and immigration directors; Charities targets CEOs and service heads; LegaltechBrokers targets managing directors and consultants.
+For each rated company (default: rating ≥ 8), searches LinkedIn (via SerpAPI) for the Managing Partner, Head of Immigration, Partner, or Director and outputs a Waalaxy-compatible CSV for outreach. Role priorities are tuned per tab — LawFirms targets senior partners and immigration directors; Charities targets CEOs and service heads; LegaltechBrokers targets managing directors and consultants.
+
+Contacts are also written back to column T of the sheet as `First Last | Role | linkedin_url` (one per line).
 
 If SerpAPI finds fewer than the threshold (default: 2) profiles for a company, it automatically falls back to querying LinkedIn's Voyager API using browser session cookies (`LINKEDIN_LI_AT` + `LINKEDIN_JSESSIONID` in `.env`).
 
@@ -134,11 +135,16 @@ LINKEDIN_JSESSIONID=<your JSESSIONID cookie value>
 ```
 Get these from browser DevTools → Application → Cookies while logged into linkedin.com.
 
+**Important:** always run with `PYTHONPATH=""` to avoid the system `typing_extensions` shadowing the venv's version:
+```bash
+PYTHONPATH="" ./venv/bin/python agents/immigration_search_agent.py --tab LawFirms
+```
+
 ### Set up / reset sheet formatting
 
 ```bash
-python immigration_sheets_setup.py              # format all tabs
-python immigration_sheets_setup.py --tab LawFirms  # one tab only
+PYTHONPATH="" ./venv/bin/python immigration_sheets_setup.py              # format all tabs
+PYTHONPATH="" ./venv/bin/python immigration_sheets_setup.py --tab LawFirms  # one tab only
 ```
 
 ---
@@ -149,36 +155,39 @@ Run each step for each tab. Steps 3 and 4 skip LegaltechBrokers automatically.
 
 ```bash
 # 1. Find companies
-venv/bin/python agents/immigration_search_agent.py --tab LawFirms
-venv/bin/python agents/immigration_search_agent.py --tab Advisors
-venv/bin/python agents/immigration_search_agent.py --tab Charities
-venv/bin/python agents/immigration_search_agent.py --tab LegaltechBrokers
+PYTHONPATH="" ./venv/bin/python agents/immigration_search_agent.py --tab LawFirms
+PYTHONPATH="" ./venv/bin/python agents/immigration_search_agent.py --tab Advisors
+PYTHONPATH="" ./venv/bin/python agents/immigration_search_agent.py --tab Charities
+PYTHONPATH="" ./venv/bin/python agents/immigration_search_agent.py --tab LegaltechBrokers
 
 # 2. Enrich missing data (fills website, LinkedIn, size, notes for incomplete rows)
-venv/bin/python agents/immigration_enrich_agent.py --tab LawFirms
-venv/bin/python agents/immigration_enrich_agent.py --tab Advisors
-venv/bin/python agents/immigration_enrich_agent.py --tab Charities
-venv/bin/python agents/immigration_enrich_agent.py --tab LegaltechBrokers
-venv/bin/python agents/immigration_enrich_agent.py --tab LawFirms --max-rows 10  # process subset
+PYTHONPATH="" ./venv/bin/python agents/immigration_enrich_agent.py --tab LawFirms
+PYTHONPATH="" ./venv/bin/python agents/immigration_enrich_agent.py --tab LawFirms --min-rating 8  # only high-value rows
+PYTHONPATH="" ./venv/bin/python agents/immigration_enrich_agent.py --tab LawFirms --max-rows 10   # process subset
 
 # 3. Detect signals (skips LegaltechBrokers automatically)
-venv/bin/python agents/signal_agent.py --tab LawFirms
-venv/bin/python agents/signal_agent.py --tab LawFirms --skip-done     # skip already-scanned rows
-venv/bin/python agents/signal_agent.py --tab LawFirms --retry-empty   # re-scan rows with no signals found
-venv/bin/python agents/signal_agent.py --tab LawFirms --dry-run       # preview without writing
+PYTHONPATH="" ./venv/bin/python agents/signal_agent.py --tab LawFirms
+PYTHONPATH="" ./venv/bin/python agents/signal_agent.py --tab LawFirms --skip-done      # skip already-scanned rows
+PYTHONPATH="" ./venv/bin/python agents/signal_agent.py --tab LawFirms --retry-empty    # re-scan rows with no signals found
+PYTHONPATH="" ./venv/bin/python agents/signal_agent.py --tab LawFirms --dry-run        # preview without writing
+PYTHONPATH="" ./venv/bin/python agents/signal_agent.py --tab LawFirms --min-rating 8   # only high-value rows
+PYTHONPATH="" ./venv/bin/python agents/signal_agent.py --tab LawFirms --max-rows 10    # cap batch size
+PYTHONPATH="" ./venv/bin/python agents/signal_agent.py --tab LawFirms --only-signals specialist  # rewrite one signal only
 
-# 4. Rate companies (skips LegaltechBrokers automatically)
-venv/bin/python agents/immigration_rating_agent.py --tab LawFirms
-venv/bin/python agents/immigration_rating_agent.py --tab LawFirms --force    # re-rate all rows
-venv/bin/python agents/immigration_rating_agent.py --tab LawFirms --no-llm  # rule-based only
+# 4. Rate companies (skips LegaltechBrokers automatically; run after signals)
+PYTHONPATH="" ./venv/bin/python agents/immigration_rating_agent.py --tab LawFirms
+PYTHONPATH="" ./venv/bin/python agents/immigration_rating_agent.py --tab LawFirms --force   # re-rate all rows
+PYTHONPATH="" ./venv/bin/python agents/immigration_rating_agent.py --tab LawFirms --llm     # also estimate rows without signals
 
-# 5. Find contacts → Waalaxy-ready CSV
-venv/bin/python agents/immigration_contact_agent.py --tab LawFirms --output contacts_lawfirms.csv
-venv/bin/python agents/immigration_contact_agent.py --tab Advisors --output contacts_advisors.csv
-venv/bin/python agents/immigration_contact_agent.py --tab LawFirms --min-rating 7   # high-quality only
-venv/bin/python agents/immigration_contact_agent.py --tab LawFirms --max-profiles 2 --limit 50
-venv/bin/python agents/immigration_contact_agent.py --tab LawFirms --dry-run        # preview only
-venv/bin/python agents/immigration_contact_agent.py --tab LawFirms --fallback-threshold 2  # LinkedIn fallback if <2 profiles
+# 5. Find contacts → Waalaxy-ready CSV + writes to sheet column T
+PYTHONPATH="" ./venv/bin/python agents/immigration_contact_agent.py --tab LawFirms --output contacts_lawfirms.csv
+PYTHONPATH="" ./venv/bin/python agents/immigration_contact_agent.py --tab Advisors --output contacts_advisors.csv
+PYTHONPATH="" ./venv/bin/python agents/immigration_contact_agent.py --tab LawFirms --min-rating 8    # high-quality only (default)
+PYTHONPATH="" ./venv/bin/python agents/immigration_contact_agent.py --tab LawFirms --max-profiles 2 --limit 50
+PYTHONPATH="" ./venv/bin/python agents/immigration_contact_agent.py --tab LawFirms --dry-run         # preview only
+PYTHONPATH="" ./venv/bin/python agents/immigration_contact_agent.py --tab LawFirms --no-sheet-write  # CSV only, skip col T
+PYTHONPATH="" ./venv/bin/python agents/immigration_contact_agent.py --tab LawFirms --fallback-threshold 2  # LinkedIn fallback if <2 profiles
+PYTHONPATH="" ./venv/bin/python agents/immigration_contact_agent.py --tab LawFirms --force-linkedin-fallback  # attempt fallback regardless
 ```
 
 ---
@@ -186,10 +195,15 @@ venv/bin/python agents/immigration_contact_agent.py --tab LawFirms --fallback-th
 ## Testing
 
 ```bash
-venv/bin/python -m pytest tests/ -v
+PYTHONPATH="" ./venv/bin/python -m pytest tests/ -v
 ```
 
-All tests mock Google Sheets and SerpAPI — no real API calls made.
+All unit/e2e tests mock Google Sheets and SerpAPI — no real API calls made.
+
+Integration tests (real SerpAPI calls, skipped by default):
+```bash
+PYTEST_RUN_INTEGRATION=1 PYTHONPATH="" ./venv/bin/python -m pytest tests/test_integration_serp.py -v
+```
 
 ---
 
@@ -201,8 +215,8 @@ immigrationfinder/
 │   ├── immigration_search_agent.py   # Step 1 — discover UK immigration companies
 │   ├── immigration_enrich_agent.py   # Step 2 — fill missing info (website, LinkedIn, size, notes)
 │   ├── signal_agent.py               # Step 3 — detect buying signals (SerpAPI + scrape + LLM)
-│   ├── immigration_rating_agent.py   # Step 4 — score 1–10 (rule-based + LLM fallback)
-│   ├── immigration_contact_agent.py  # Step 5 — find decision-maker contacts → CSV for Waalaxy
+│   ├── immigration_rating_agent.py   # Step 4 — score 1–10 (rule-based; --llm for provisional estimates)
+│   ├── immigration_contact_agent.py  # Step 5 — find decision-maker contacts → CSV + sheet col T
 │   └── provider.py                   # LLM provider (Vertex AI)
 │
 ├── tools/
@@ -218,7 +232,9 @@ immigrationfinder/
 │   ├── test_immigration_contact_agent.py
 │   ├── test_sheets_append_tool.py
 │   ├── test_sheets_update_signal_tool.py
-│   └── test_sheets_update_tool.py
+│   ├── test_sheets_update_tool.py
+│   ├── test_e2e_real_companies.py    # Mocked e2e tests for all 4 tabs
+│   └── test_integration_serp.py      # Real SerpAPI integration tests (opt-in)
 │
 ├── immigration_sheets_setup.py       # Create/reformat sheet tabs with styling
 ├── config.py
