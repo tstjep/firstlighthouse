@@ -75,8 +75,10 @@ COL_CONTACTS       = 19  # T
 HEADER_BG       = {"red": 0.106, "green": 0.282, "blue": 0.490}   # deep navy
 SIGNAL_YES_BG   = {"red": 0.714, "green": 0.843, "blue": 0.659}   # soft green #B6D7A8
 SIGNAL_NO_BG    = {"red": 0.918, "green": 0.600, "blue": 0.600}   # soft red   #EA9999
-RATING_HIGH_BG  = {"red": 0.714, "green": 0.843, "blue": 0.659}   # green for 4-5
-RATING_LOW_BG   = {"red": 0.988, "green": 0.898, "blue": 0.804}   # amber for 1-2
+RATING_HIGH_BG  = {"red": 0.576, "green": 0.769, "blue": 0.490}   # strong green  (8-10)
+RATING_MID_BG   = {"red": 0.714, "green": 0.843, "blue": 0.659}   # soft green    (6-7)
+RATING_LOW_BG   = {"red": 0.988, "green": 0.898, "blue": 0.804}   # amber         (4-5)
+RATING_POOR_BG  = {"red": 0.918, "green": 0.600, "blue": 0.600}   # soft red      (1-3)
 ROW_LIGHT       = {"red": 0.949, "green": 0.949, "blue": 0.949}   # #F2F2F2
 ROW_DARK        = {"red": 0.820, "green": 0.820, "blue": 0.820}   # #D1D1D1
 WHITE           = {"red": 1.0,   "green": 1.0,   "blue": 1.0}
@@ -340,17 +342,29 @@ def build_requests(sheet_id: int, num_cols: int) -> list:
             }
         })
 
-    # 9. Rating column (col 2 = C): colour by value
+    # 9. Rating column (col 2 = C): colour by value using NUMBER_BETWEEN
+    #    Bands: 8-10 = strong green, 6-7 = soft green, 4-5 = amber, 1-3 = red
+    #    Provisional ratings (~N) are text so NUMBER_BETWEEN won't match — left uncoloured.
     rating_col = {"sheetId": sheet_id, "startRowIndex": 1,
                   "startColumnIndex": 2, "endColumnIndex": 3}
-    for val, bg in [("5", SIGNAL_YES_BG), ("4", SIGNAL_YES_BG),
-                    ("1", SIGNAL_NO_BG),  ("2", RATING_LOW_BG)]:
+    for lo, hi, bg in [
+        ("8",  "10", RATING_HIGH_BG),
+        ("6",  "7",  RATING_MID_BG),
+        ("4",  "5",  RATING_LOW_BG),
+        ("1",  "3",  RATING_POOR_BG),
+    ]:
         requests.append({
             "addConditionalFormatRule": {
                 "rule": {
                     "ranges": [rating_col],
                     "booleanRule": {
-                        "condition": {"type": "TEXT_EQ", "values": [{"userEnteredValue": val}]},
+                        "condition": {
+                            "type": "NUMBER_BETWEEN",
+                            "values": [
+                                {"userEnteredValue": lo},
+                                {"userEnteredValue": hi},
+                            ],
+                        },
                         "format": {"backgroundColor": bg},
                     },
                 },

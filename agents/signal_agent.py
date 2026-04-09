@@ -433,7 +433,7 @@ async def _write_company_signals(
 
 # ── Main ───────────────────────────────────────────────────────────────────
 
-async def main(tab: str, skip_done: bool = False, dry_run: bool = False, retry_empty: bool = False, min_rating: int = 5) -> None:
+async def main(tab: str, skip_done: bool = False, dry_run: bool = False, retry_empty: bool = False, min_rating: int = 5, max_rows: int = 0) -> None:
     credentials_file = str(PROJECT_ROOT / cfg.CREDENTIALS_FILE)
 
     print("=" * 60)
@@ -452,6 +452,9 @@ async def main(tab: str, skip_done: bool = False, dry_run: bool = False, retry_e
     print("\n[1/3] Reading companies from sheet...")
     try:
         companies = _read_companies(tab, credentials_file, skip_done, retry_empty=retry_empty, min_rating=min_rating)
+        if max_rows and len(companies) > max_rows:
+            print(f"  → capping to {max_rows} rows (--max-rows)")
+            companies = companies[:max_rows]
     except Exception as exc:
         print(f"[error] Could not read sheet: {exc}")
         return
@@ -608,5 +611,7 @@ if __name__ == "__main__":
     parser.add_argument("--dry-run",      action="store_true", help="Print results without writing to sheet")
     parser.add_argument("--min-rating",   type=int, default=8, metavar="N",
                         help="Only process companies with rating >= N (default: 8, 0 = no filter)")
+    parser.add_argument("--max-rows",     type=int, default=0, metavar="N",
+                        help="Cap number of companies to process (0 = no limit)")
     args = parser.parse_args()
-    asyncio.run(main(args.tab, skip_done=args.skip_done, dry_run=args.dry_run, retry_empty=args.retry_empty, min_rating=args.min_rating))
+    asyncio.run(main(args.tab, skip_done=args.skip_done, dry_run=args.dry_run, retry_empty=args.retry_empty, min_rating=args.min_rating, max_rows=args.max_rows))
