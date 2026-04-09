@@ -488,9 +488,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--tab",
-        choices=config.IMMIGRATION_TABS,
+        choices=config.ALL_TABS,
         default=None,
-        help="Single tab to set up. Omit to set up all tabs.",
+        help="Single tab to set up. Omit to set up all immigration tabs.",
     )
     parser.add_argument(
         "--credentials",
