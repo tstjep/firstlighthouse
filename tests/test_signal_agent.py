@@ -152,11 +152,11 @@ class TestSkipLogic:
         sig = inspect.signature(main)
         assert "retry_empty" in sig.parameters
 
-    def test_tech_prompt_rejects_ukvi_portal(self):
-        """Tech signal prompt must explicitly exclude gov.uk / UKVI portal."""
+    def test_specialist_prompt_distinguishes_primary_practice(self):
+        """Specialist signal prompt must explain primary vs general practice distinction."""
         from agents.signal_agent import TASK
         task_lower = TASK.lower()
-        assert "ukvi" in task_lower or "gov.uk" in task_lower or "government" in task_lower
+        assert "primary" in task_lower or "sole" in task_lower or "specialist" in task_lower
 
     def test_legaltech_brokers_tab_is_skipped(self):
         """signal_agent should refuse to process LegaltechBrokers."""
@@ -177,7 +177,7 @@ class TestSignalAgentTask:
         self.task = TASK
 
     def test_task_mentions_all_five_signals(self):
-        for signal in ("corporate", "tech", "multivisa", "highvolume", "growth"):
+        for signal in ("corporate", "specialist", "multivisa", "highvolume", "growth"):
             assert signal in self.task.lower(), f"Signal '{signal}' missing from task"
 
     def test_task_mentions_search_results_field(self):
@@ -197,9 +197,9 @@ class TestSignalAgentTask:
         assert "sponsor licence" in self.task
         assert "skilled worker" in self.task
 
-    def test_tech_signal_keywords_in_task(self):
-        assert "client portal" in self.task
-        assert "document upload" in self.task
+    def test_specialist_signal_keywords_in_task(self):
+        assert "immigration law firm" in self.task or "specialist immigration" in self.task
+        assert "primary" in self.task.lower() or "sole" in self.task.lower()
 
     def test_multivisa_threshold_in_task(self):
         assert "3" in self.task  # 3+ visa types
@@ -330,11 +330,11 @@ class TestFallbackQueries:
         terms = qa.lower()
         assert any(kw in terms for kw in ("sponsor licence", "skilled worker", "corporate immigration"))
 
-    def test_fallback_query_b_covers_tech_and_multivisa(self):
+    def test_fallback_query_b_covers_specialist_and_multivisa(self):
         from agents.signal_agent import _build_fallback_queries
         _, qb = _build_fallback_queries("IAS Immigration")
         terms = qb.lower()
-        assert any(kw in terms for kw in ("client portal", "online application", "family visa", "student visa"))
+        assert any(kw in terms for kw in ("immigration law firm", "specialist immigration", "family visa", "student visa"))
 
     def test_fallback_query_b_covers_growth(self):
         from agents.signal_agent import _build_fallback_queries

@@ -24,18 +24,18 @@ def _make_tool(sheet_name="LawFirms"):
 class TestSignalCols:
 
     def test_all_five_signals_defined(self):
-        assert set(SIGNAL_COLS.keys()) == {"corporate", "tech", "multivisa", "highvolume", "growth"}
+        assert set(SIGNAL_COLS.keys()) == {"corporate", "specialist", "multivisa", "highvolume", "growth"}
 
     def test_each_signal_has_two_columns(self):
         for name, cols in SIGNAL_COLS.items():
             assert len(cols) == 2, f"{name} should have 2 columns (signal + source)"
 
     def test_column_mapping(self):
-        assert SIGNAL_COLS["corporate"]  == ("J", "K")
-        assert SIGNAL_COLS["tech"]       == ("L", "M")
-        assert SIGNAL_COLS["multivisa"]  == ("N", "O")
-        assert SIGNAL_COLS["highvolume"] == ("P", "Q")
-        assert SIGNAL_COLS["growth"]     == ("R", "S")
+        assert SIGNAL_COLS["corporate"]   == ("J", "K")
+        assert SIGNAL_COLS["specialist"]  == ("L", "M")
+        assert SIGNAL_COLS["multivisa"]   == ("N", "O")
+        assert SIGNAL_COLS["highvolume"]  == ("P", "Q")
+        assert SIGNAL_COLS["growth"]      == ("R", "S")
 
     def test_no_column_overlap(self):
         all_cols = [c for cols in SIGNAL_COLS.values() for c in cols]
@@ -86,7 +86,7 @@ class TestWrites:
 
     def test_writes_two_ranges(self):
         tool, svc = _make_tool()
-        asyncio.run(tool.execute(row_index=5, signal="tech", detected=True, source="client portal"))
+        asyncio.run(tool.execute(row_index=5, signal="specialist", detected=True, source="immigration law firm"))
         body = svc.spreadsheets.return_value.values.return_value.batchUpdate.call_args.kwargs["body"]
         assert len(body["data"]) == 2
 

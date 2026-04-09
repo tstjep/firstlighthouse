@@ -22,7 +22,7 @@ Rule scoring factors
 --------------------
   +3  CorporateImmigration signal = Yes  (sponsor licence / skilled worker / corporate)
   +3  HighVolume signal = Yes            (large team or many clients)
-  +2  TechForward signal = Yes           (client portal / online application / case tracking)
+  +2  Specialist signal = Yes            (immigration is primary/sole practice area)
   +2  MultiVisa signal = Yes             (handles 3+ visa types)
   +1  Growth signal = Yes                (hiring / new office / expanding)
   +1  Size in sweet spot (1–200 staff)
@@ -64,12 +64,12 @@ _COL_WEBSITE     = 4   # E
 _COL_LINKEDIN    = 5   # F
 _COL_SIZE        = 6   # G
 _COL_CORPORATE   = 9   # J
-_COL_TECH        = 11  # L
+_COL_SPECIALIST  = 11  # L
 _COL_MULTIVISA   = 13  # N
 _COL_HIGHVOLUME  = 15  # P
 _COL_GROWTH      = 17  # R
 
-_SIGNAL_COLS = [_COL_CORPORATE, _COL_TECH, _COL_MULTIVISA, _COL_HIGHVOLUME, _COL_GROWTH]
+_SIGNAL_COLS = [_COL_CORPORATE, _COL_SPECIALIST, _COL_MULTIVISA, _COL_HIGHVOLUME, _COL_GROWTH]
 
 _SWEET_SPOT_SIZES = {
     "1-10", "2-10", "5-10",
@@ -98,7 +98,7 @@ def _score(row: list[str]) -> int:
     pts = 0
     if _is_yes(row, _COL_CORPORATE):  pts += 3
     if _is_yes(row, _COL_HIGHVOLUME): pts += 3
-    if _is_yes(row, _COL_TECH):       pts += 2
+    if _is_yes(row, _COL_SPECIALIST):  pts += 2
     if _is_yes(row, _COL_MULTIVISA):  pts += 2
     if _is_yes(row, _COL_GROWTH):     pts += 1
     if _cell(row, _COL_SIZE) in _SWEET_SPOT_SIZES: pts += 1

@@ -14,7 +14,7 @@ Immigration sheet column mapping (A:S):
   H  HQ Location
   I  Date Added
   J  CorporateImmigration Signal  |  K  Source
-  L  TechForward Signal           |  M  Source
+  L  Specialist Signal            |  M  Source
   N  MultiVisa Signal             |  O  Source
   P  HighVolume Signal            |  Q  Source
   R  Growth Signal                |  S  Source
@@ -31,7 +31,7 @@ SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
 SIGNAL_COLS = {
     "corporate":  ("J", "K"),
-    "tech":       ("L", "M"),
+    "specialist":       ("L", "M"),
     "multivisa":  ("N", "O"),
     "highvolume": ("P", "Q"),
     "growth":     ("R", "S"),
@@ -88,7 +88,7 @@ class SheetsUpdateSignalTool(Tool):
                     "description": (
                         "Which signal to update: "
                         "'corporate' = sponsor licence / skilled worker / corporate clients; "
-                        "'tech' = client portal / online application / document upload; "
+                        "'specialist' = immigration is the firm's primary or sole practice area; "
                         "'multivisa' = handles 3+ visa types; "
                         "'highvolume' = large team or many clients mentioned; "
                         "'growth' = hiring / new office / expanding."

@@ -14,7 +14,7 @@ Sheet structure (A:S = 19 cols):
   H  HQ Location
   I  Date Added
   J  CorporateImmigration Signal  |  K  Source
-  L  TechForward Signal           |  M  Source
+  L  Specialist Signal            |  M  Source
   N  MultiVisa Signal             |  O  Source
   P  HighVolume Signal            |  Q  Source
   R  Growth Signal                |  S  Source
@@ -54,8 +54,8 @@ COLUMNS = [
     # Signal columns (signal + source, no date)
     ("Corporate Signal",            "Yes/No – handles corporate immigration / sponsor licence"),
     ("Corporate Source",            "Title/snippet/URL where Corporate signal was found"),
-    ("Tech Signal",                 "Yes/No – uses or offers digital immigration tools"),
-    ("Tech Source",                 "Title/snippet/URL where Tech signal was found"),
+    ("Specialist Signal",           "Yes/No – immigration is the firm's primary or sole practice area"),
+    ("Specialist Source",          "Title/snippet/URL where Specialist signal was found"),
     ("MultiVisa Signal",            "Yes/No – handles 3+ distinct visa types"),
     ("MultiVisa Source",            "Title/snippet/URL where MultiVisa signal was found"),
     ("HighVolume Signal",           "Yes/No – large team or high caseload"),
@@ -98,8 +98,8 @@ COL_WIDTHS = {
     8:  120,   # Date Added
     9:  100,   # Corporate Signal
     10: 380,   # Corporate Source
-    11: 90,    # Tech Signal
-    12: 380,   # Tech Source
+    11: 90,    # Specialist Signal
+    12: 380,   # Specialist Source
     13: 100,   # MultiVisa Signal
     14: 380,   # MultiVisa Source
     15: 110,   # HighVolume Signal
@@ -116,11 +116,11 @@ _BLANK = {"condition": {"type": "BLANK"}}
 
 FILTER_VIEWS = [
     ("Corporate Signal",   {"9":  _YES}),
-    ("Tech Signal",        {"11": _YES}),
+    ("Specialist Signal",  {"11": _YES}),
     ("MultiVisa Signal",   {"13": _YES}),
     ("HighVolume Signal",  {"15": _YES}),
     ("Growth Signal",      {"17": _YES}),
-    ("Corporate + Tech",   {"9":  _YES, "11": _YES}),
+    ("Corporate + Specialist", {"9": _YES, "11": _YES}),
     ("Corporate + Volume", {"9":  _YES, "15": _YES}),
     ("Not yet scanned",    {"9":  _BLANK}),
 ]

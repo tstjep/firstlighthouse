@@ -10,7 +10,7 @@ doesn't need a live search.
 Signals
 -------
   corporate   — sponsor licence / skilled worker / corporate immigration clients
-  tech        — client portal / online application / document upload / case tracking
+  specialist  — immigration is the firm's primary or sole practice area
   multivisa   — handles 3+ visa types (family, student, spouse, investor, etc.)
   highvolume  — large team or many clients mentioned
   growth      — hiring / new office / expanding
@@ -117,14 +117,16 @@ Your job is to detect five buying signals for each company:
                 "business visa", "corporate clients", "employer", "right to work",
                 "points-based system", "work permit", "Tier 2"
 
-  tech        → the firm itself offers digital tools to its own clients
-                Keywords: "client portal", "document upload", "case tracking",
-                "secure upload", "track your case", "our portal", "our app",
-                "our software", "our platform", "our system", "our online service"
-                IMPORTANT: Do NOT mark Yes just because the firm mentions UKVI's
-                online application process or gov.uk forms — that is the government
-                system, not the firm's own tool. Only mark Yes if the firm has built
-                or subscribes to a portal/system they offer to their own clients.
+  specialist  → immigration is the firm's PRIMARY or SOLE practice area (not one
+                department within a general law firm)
+                Positive signals: "immigration law firm", "immigration solicitors",
+                "specialist immigration", "dedicated immigration", firm name contains
+                "immigration", "only immigration", "exclusively immigration",
+                "boutique immigration", site is entirely about immigration services.
+                Negative signals: firm lists many unrelated practice areas (conveyancing,
+                family law, criminal, employment, PI etc.) alongside immigration —
+                these are general practices where immigration is just one department.
+                Mark Yes only when immigration is clearly the firm's main focus.
 
   multivisa   → handles 3 or more distinct visa types
                 Count mentions of: family visa, spouse visa, student visa, investor visa,
@@ -156,7 +158,7 @@ Return a JSON array (one object per company):
     "row_index": <int>,
     "signals": {
       "corporate":   {"detected": true/false, "source": "..."},
-      "tech":        {"detected": true/false, "source": "..."},
+      "specialist":  {"detected": true/false, "source": "..."},
       "multivisa":   {"detected": true/false, "source": "..."},
       "highvolume":  {"detected": true/false, "source": "..."},
       "growth":      {"detected": true/false, "source": "..."}
@@ -236,8 +238,8 @@ def _build_fallback_queries(company_name: str) -> tuple[str, str]:
         '"immigration solicitor" OR "immigration adviser")'
     )
     query_b = (
-        f'"{name}" ("client portal" OR "online application" OR '
-        '"document upload" OR "case tracking" OR '
+        f'"{name}" ("immigration law firm" OR "immigration solicitors" OR '
+        '"specialist immigration" OR "dedicated immigration" OR '
         '"family visa" OR "student visa" OR "spouse visa" OR '
         '"we are hiring" OR "join our team" OR "expanding" OR "new office")'
     )
@@ -496,9 +498,9 @@ async def main(tab: str, skip_done: bool = False, dry_run: bool = False, retry_e
             '"our solicitors" OR "meet the team" OR "our lawyers"'
         )
         query_b = (
-            f'site:{domain} "client portal" OR "online application" OR '
-            '"document upload" OR "case tracking" OR "family visa" OR '
-            '"spouse visa" OR "student visa" OR "investor visa" OR '
+            f'site:{domain} "immigration law firm" OR "specialist immigration" OR '
+            '"dedicated immigration" OR "immigration solicitors" OR '
+            '"family visa" OR "spouse visa" OR "student visa" OR "investor visa" OR '
             '"we are hiring" OR "join our team" OR "new office" OR "expanding"'
         )
         try:
@@ -588,14 +590,14 @@ async def main(tab: str, skip_done: bool = False, dry_run: bool = False, retry_e
     if write_errors:
         print(f"  Write errors:    {write_errors}")
 
-    print(f"\n  {'Company':<35} {'corp':>5} {'tech':>5} {'multi':>6} {'hvol':>5} {'grow':>5}")
+    print(f"\n  {'Company':<35} {'corp':>5} {'spec':>5} {'multi':>6} {'hvol':>5} {'grow':>5}")
     print(f"  {'-'*35} {'-'*5} {'-'*5} {'-'*6} {'-'*5} {'-'*5}")
     for r in all_results:
         row_idx = r.get("row_index")
         name    = next((c["company_name"] for c in companies if c["row_index"] == row_idx), "?")
         sigs    = r.get("signals", {})
         def yn(s): return "Yes" if sigs.get(s, {}).get("detected") else "No"
-        print(f"  {name[:35]:<35} {yn('corporate'):>5} {yn('tech'):>5} {yn('multivisa'):>6} {yn('highvolume'):>5} {yn('growth'):>5}")
+        print(f"  {name[:35]:<35} {yn('corporate'):>5} {yn('specialist'):>5} {yn('multivisa'):>6} {yn('highvolume'):>5} {yn('growth'):>5}")
 
     processed = len(all_results)
     print(f"\n  Processed: {processed}/{total} companies")
