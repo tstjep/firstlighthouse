@@ -5,8 +5,8 @@
 {% block page_actions %}
   {% if campaign.product_context %}
   <a href="/campaigns/{{ campaign.id }}/results" role="button" class="secondary btn-sm">View results</a>
-  {% endif %}
   <button form="campaign-form" type="submit" name="action" value="save" class="btn-sm">Save campaign</button>
+  {% endif %}
 {% endblock %}
 
 {% macro field(label, name, value='', type='text', placeholder='', help='', required=False) %}
@@ -189,14 +189,11 @@
 
   <!-- ── 2. REGION ──────────────────────────────────────────────────────── -->
   <div class="section" id="region">
-    <details {% if campaign.region.label %}open{% endif %}>
-      <summary style="font-size:1rem; font-weight:700; color:var(--brand); cursor:pointer;">
-        Region
-        {% if not campaign.region.label %}
-        <span style="font-size:0.75rem; font-weight:400; color:#f5a623; margin-left:0.25rem;">— define your target region in the ICP above, then configure here</span>
-        {% else %}
-        <span style="font-size:0.75rem; font-weight:400; color:#8896b0; margin-left:0.25rem;">{{ campaign.region.label }}</span>
-        {% endif %}
+    <details>
+      <summary style="font-size:1rem; font-weight:700; color:var(--brand); cursor:pointer; list-style:none; display:flex; align-items:center; gap:0.5rem;">
+        <span>Region</span>
+        <span style="font-size:0.75rem; font-weight:400; color:#8896b0;">{{ campaign.region.label or '—' }}</span>
+        <span style="margin-left:auto; font-size:0.7rem; font-weight:400; color:#b0bcd0; font-style:italic;">auto-populated from ICP · only change if needed</span>
       </summary>
 
       <div style="margin-top:1rem;">
