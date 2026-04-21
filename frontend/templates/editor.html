@@ -530,6 +530,8 @@ async function fetchSuggestions() {
     alert('Fill in your ICP description first.');
     return;
   }
+  const hint = document.getElementById('signalsStageHint');
+  if (hint) hint.style.display = 'none';
 
   const btn = document.getElementById('suggestBtn');
   btn.textContent = '⏳ Loading…';
