@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
-SERPAPI_KEY      = "SERPAPI_KEY_REDACTED"
+SERPAPI_KEY      = os.environ.get("SERPAPI_KEY", "")
 
 CREDENTIALS_FILE = "melt2.json"
 
