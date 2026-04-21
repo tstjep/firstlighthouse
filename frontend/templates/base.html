@@ -559,6 +559,35 @@
     }
     .icp-hint.hidden { display: none; }
 
+    /* ── Tooltip ─────────────────────────────────────────────────────────── */
+    [data-tip] {
+      position: relative;
+      cursor: default;
+    }
+    [data-tip]::after {
+      content: attr(data-tip);
+      position: absolute;
+      bottom: calc(100% + 6px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1a2236;
+      color: #e8edf8;
+      font-size: 0.72rem;
+      font-weight: 400;
+      font-style: normal;
+      line-height: 1.45;
+      white-space: normal;
+      width: 200px;
+      padding: 0.45rem 0.6rem;
+      border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0,0,0,.18);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s;
+      z-index: 100;
+    }
+    [data-tip]:hover::after { opacity: 1; }
+
     code {
       background: #f1f5fb;
       padding: 0.1em 0.35em;

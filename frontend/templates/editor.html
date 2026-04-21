@@ -68,7 +68,7 @@
           <div style="display:flex; align-items:stretch; gap:0; border-bottom:1px solid #e8edf5;">
             <div style="flex-shrink:0; width:145px; padding:0.45rem 0.75rem; background:#eef3fd; display:flex; flex-direction:column; justify-content:center; gap:1px;">
               <span style="font-size:0.75rem; font-weight:600; color:#4f8ef7;">We sell</span>
-              <span style="font-size:0.62rem; color:#a0aec8; font-style:italic;">your product &nbsp;<span style="font-style:normal; background:#dde8fb; color:#4f8ef7; border-radius:20px; padding:1px 6px; font-size:0.58rem; font-weight:700; letter-spacing:0.02em;">1</span></span>
+              <span style="font-size:0.62rem; color:#a0aec8; font-style:italic;">your product &nbsp;<span data-tip="One product per campaign. Create a separate campaign if you're selling something different." style="font-style:normal; background:#dde8fb; color:#4f8ef7; border-radius:20px; padding:1px 6px; font-size:0.58rem; font-weight:700; letter-spacing:0.02em;">1</span></span>
             </div>
             <div style="flex:1; display:flex; flex-direction:column;">
               <input id="icp_product" type="text" placeholder="HRly, a cloud HR platform" style="border:none; background:transparent; padding:0.5rem 0.75rem 0.25rem; font-size:0.82rem; outline:none;" oninput="rebuildIcp(); updateHint(this)">
@@ -78,7 +78,7 @@
           <div style="display:flex; align-items:stretch; gap:0; border-bottom:1px solid #e8edf5;">
             <div style="flex-shrink:0; width:145px; padding:0.45rem 0.75rem; background:#eef3fd; display:flex; flex-direction:column; justify-content:center; gap:1px;">
               <span style="font-size:0.75rem; font-weight:600; color:#4f8ef7;">to</span>
-              <span style="font-size:0.62rem; color:#a0aec8; font-style:italic;">your target market &nbsp;<span style="font-style:normal; background:#dde8fb; color:#4f8ef7; border-radius:20px; padding:1px 6px; font-size:0.58rem; font-weight:700; letter-spacing:0.02em;">1</span></span>
+              <span style="font-size:0.62rem; color:#a0aec8; font-style:italic;">your target market &nbsp;<span data-tip="One market segment per campaign. This keeps your search queries and scoring consistent." style="font-style:normal; background:#dde8fb; color:#4f8ef7; border-radius:20px; padding:1px 6px; font-size:0.58rem; font-weight:700; letter-spacing:0.02em;">1</span></span>
             </div>
             <div style="flex:1; display:flex; flex-direction:column;">
               <input id="icp_target" type="text" placeholder="SMBs in professional services" style="border:none; background:transparent; padding:0.5rem 0.75rem 0.25rem; font-size:0.82rem; outline:none;" oninput="rebuildIcp(); updateHint(this)">
@@ -88,7 +88,7 @@
           <div style="display:flex; align-items:stretch; gap:0; border-bottom:1px solid #e8edf5;">
             <div style="flex-shrink:0; width:145px; padding:0.45rem 0.75rem; background:#eef3fd; display:flex; flex-direction:column; justify-content:center; gap:1px;">
               <span style="font-size:0.75rem; font-weight:600; color:#4f8ef7;">Company size</span>
-              <span style="font-size:0.62rem; color:#a0aec8; font-style:italic;">headcount range &nbsp;<span style="font-style:normal; background:#dde8fb; color:#4f8ef7; border-radius:20px; padding:1px 6px; font-size:0.58rem; font-weight:700; letter-spacing:0.02em;">1</span></span>
+              <span style="font-size:0.62rem; color:#a0aec8; font-style:italic;">headcount range &nbsp;<span data-tip="One size band. Companies outside this range won't be excluded — but those inside it get a scoring bonus." style="font-style:normal; background:#dde8fb; color:#4f8ef7; border-radius:20px; padding:1px 6px; font-size:0.58rem; font-weight:700; letter-spacing:0.02em;">1</span></span>
             </div>
             <div style="flex:1; display:flex; flex-direction:column;">
               <input id="icp_size" type="text" placeholder="20–200" style="border:none; background:transparent; padding:0.5rem 0.75rem 0.25rem; font-size:0.82rem; outline:none;" oninput="rebuildIcp(); updateHint(this)">
@@ -98,7 +98,7 @@
           <div style="display:flex; align-items:stretch; gap:0; border-bottom:1px solid #e8edf5;">
             <div style="flex-shrink:0; width:145px; padding:0.45rem 0.75rem; background:#eef3fd; display:flex; flex-direction:column; justify-content:center; gap:1px;">
               <span style="font-size:0.75rem; font-weight:600; color:#4f8ef7;">Region</span>
-              <span style="font-size:0.62rem; color:#a0aec8; font-style:italic;">where you sell &nbsp;<span style="font-style:normal; background:#dde8fb; color:#4f8ef7; border-radius:20px; padding:1px 6px; font-size:0.58rem; font-weight:700; letter-spacing:0.02em;">1</span></span>
+              <span style="font-size:0.62rem; color:#a0aec8; font-style:italic;">where you sell &nbsp;<span data-tip="One region per campaign. Use separate campaigns for different geographies." style="font-style:normal; background:#dde8fb; color:#4f8ef7; border-radius:20px; padding:1px 6px; font-size:0.58rem; font-weight:700; letter-spacing:0.02em;">1</span></span>
             </div>
             <div style="flex:1; display:flex; flex-direction:column;">
               <input id="icp_region" type="text" placeholder="Switzerland" style="border:none; background:transparent; padding:0.5rem 0.75rem 0.25rem; font-size:0.82rem; outline:none;" oninput="rebuildIcp(); updateHint(this); applyRegionFromIcp(this.value)">
@@ -108,7 +108,7 @@
           <div style="display:flex; align-items:stretch; gap:0; border-bottom:1px solid #e8edf5;">
             <div style="flex-shrink:0; width:145px; padding:0.45rem 0.75rem; background:#eef3fd; display:flex; flex-direction:column; justify-content:center; gap:1px;">
               <span style="font-size:0.75rem; font-weight:600; color:#4f8ef7;">Pain points</span>
-              <span style="font-size:0.62rem; color:#a0aec8; font-style:italic;">their struggles &nbsp;<span style="font-style:normal; background:#dde8fb; color:#4f8ef7; border-radius:20px; padding:1px 6px; font-size:0.58rem; font-weight:700; letter-spacing:0.02em;">n</span></span>
+              <span style="font-size:0.62rem; color:#a0aec8; font-style:italic;">their struggles &nbsp;<span data-tip="Comma-separated. List all pain points — the richer this is, the better the signal suggestions." style="font-style:normal; background:#dde8fb; color:#4f8ef7; border-radius:20px; padding:1px 6px; font-size:0.58rem; font-weight:700; letter-spacing:0.02em;">n</span></span>
             </div>
             <div style="flex:1; display:flex; flex-direction:column;">
               <input id="icp_pain" type="text" placeholder="manual HR admin, staying compliant with Swiss labour law" style="border:none; background:transparent; padding:0.5rem 0.75rem 0.25rem; font-size:0.82rem; outline:none;" oninput="rebuildIcp(); updateHint(this)">
@@ -122,7 +122,7 @@
           <div style="display:flex; align-items:stretch; gap:0; border-bottom:1px solid #e8edf5;">
             <div style="flex-shrink:0; width:145px; padding:0.45rem 0.75rem; background:#edfaf3; display:flex; flex-direction:column; justify-content:center; gap:1px;">
               <span style="font-size:0.75rem; font-weight:600; color:#22c27a;">Buying signals</span>
-              <span style="font-size:0.62rem; color:#a0aec8; font-style:italic;">what triggers urgency &nbsp;<span style="font-style:normal; background:#d4f5e5; color:#22c27a; border-radius:20px; padding:1px 6px; font-size:0.58rem; font-weight:700; letter-spacing:0.02em;">n</span></span>
+              <span style="font-size:0.62rem; color:#a0aec8; font-style:italic;">what triggers urgency &nbsp;<span data-tip="Comma-separated. Multiple triggers are common — list all events that make a prospect ready to buy." style="font-style:normal; background:#d4f5e5; color:#22c27a; border-radius:20px; padding:1px 6px; font-size:0.58rem; font-weight:700; letter-spacing:0.02em;">n</span></span>
             </div>
             <div style="flex:1; display:flex; flex-direction:column;">
               <input id="icp_signal" type="text" placeholder="actively hiring an HR manager, scaling headcount" style="border:none; background:transparent; padding:0.5rem 0.75rem 0.25rem; font-size:0.82rem; outline:none;" oninput="rebuildIcp(); updateHint(this)">
@@ -132,7 +132,7 @@
           <div style="display:flex; align-items:stretch; gap:0; border-bottom:1px solid #e8edf5;">
             <div style="flex-shrink:0; width:145px; padding:0.45rem 0.75rem; background:#edfaf3; display:flex; flex-direction:column; justify-content:center; gap:1px;">
               <span style="font-size:0.75rem; font-weight:600; color:#22c27a;">Decision makers</span>
-              <span style="font-size:0.62rem; color:#a0aec8; font-style:italic;">who approves the budget &nbsp;<span style="font-style:normal; background:#d4f5e5; color:#22c27a; border-radius:20px; padding:1px 6px; font-size:0.58rem; font-weight:700; letter-spacing:0.02em;">n</span></span>
+              <span style="font-size:0.62rem; color:#a0aec8; font-style:italic;">who approves the budget &nbsp;<span data-tip="Comma-separated. There may be multiple buying roles — list all titles that can greenlight the purchase." style="font-style:normal; background:#d4f5e5; color:#22c27a; border-radius:20px; padding:1px 6px; font-size:0.58rem; font-weight:700; letter-spacing:0.02em;">n</span></span>
             </div>
             <div style="flex:1; display:flex; flex-direction:column;">
               <input id="icp_role" type="text" placeholder="CEO, head of HR" style="border:none; background:transparent; padding:0.5rem 0.75rem 0.25rem; font-size:0.82rem; outline:none;" oninput="rebuildIcp(); updateHint(this)">
@@ -142,7 +142,7 @@
           <div style="display:flex; align-items:stretch; gap:0;">
             <div style="flex-shrink:0; width:145px; padding:0.45rem 0.75rem; background:#edfaf3; display:flex; flex-direction:column; justify-content:center; gap:1px;">
               <span style="font-size:0.75rem; font-weight:600; color:#22c27a;">Day-to-day users</span>
-              <span style="font-size:0.62rem; color:#a0aec8; font-style:italic;">who champions it internally &nbsp;<span style="font-style:normal; background:#d4f5e5; color:#22c27a; border-radius:20px; padding:1px 6px; font-size:0.58rem; font-weight:700; letter-spacing:0.02em;">n</span></span>
+              <span style="font-size:0.62rem; color:#a0aec8; font-style:italic;">who champions it internally &nbsp;<span data-tip="Comma-separated. Often different from the buyer — list all roles who would use it day-to-day." style="font-style:normal; background:#d4f5e5; color:#22c27a; border-radius:20px; padding:1px 6px; font-size:0.58rem; font-weight:700; letter-spacing:0.02em;">n</span></span>
             </div>
             <div style="flex:1; display:flex; flex-direction:column;">
               <input id="icp_user" type="text" placeholder="HR manager, office manager" style="border:none; background:transparent; padding:0.5rem 0.75rem 0.25rem; font-size:0.82rem; outline:none;" oninput="rebuildIcp(); updateHint(this)">
@@ -156,7 +156,7 @@
           <div style="display:flex; align-items:stretch; gap:0; border-bottom:1px solid #e8edf5;">
             <div style="flex-shrink:0; width:145px; padding:0.45rem 0.75rem; background:#fef8ec; display:flex; flex-direction:column; justify-content:center; gap:1px;">
               <span style="font-size:0.75rem; font-weight:600; color:#f5a623;">Current options</span>
-              <span style="font-size:0.62rem; color:#a0aec8; font-style:italic;">what they use today &nbsp;<span style="font-style:normal; background:#fdeecf; color:#f5a623; border-radius:20px; padding:1px 6px; font-size:0.58rem; font-weight:700; letter-spacing:0.02em;">n</span></span>
+              <span style="font-size:0.62rem; color:#a0aec8; font-style:italic;">what they use today &nbsp;<span data-tip="Comma-separated. List all alternatives — tools, manual processes, or 'nothing'. Helps identify substitution signals." style="font-style:normal; background:#fdeecf; color:#f5a623; border-radius:20px; padding:1px 6px; font-size:0.58rem; font-weight:700; letter-spacing:0.02em;">n</span></span>
             </div>
             <div style="flex:1; display:flex; flex-direction:column;">
               <input id="icp_options" type="text" placeholder="spreadsheets, BambooHR, nothing formal" style="border:none; background:transparent; padding:0.5rem 0.75rem 0.25rem; font-size:0.82rem; outline:none;" oninput="rebuildIcp(); updateHint(this)">
@@ -166,7 +166,7 @@
           <div style="display:flex; align-items:stretch; gap:0;">
             <div style="flex-shrink:0; width:145px; padding:0.45rem 0.75rem; background:#fef8ec; display:flex; flex-direction:column; justify-content:center; gap:1px;">
               <span style="font-size:0.75rem; font-weight:600; color:#f5a623;">Skip if</span>
-              <span style="font-size:0.62rem; color:#a0aec8; font-style:italic;">who wastes your time &nbsp;<span style="font-style:normal; background:#fdeecf; color:#f5a623; border-radius:20px; padding:1px 6px; font-size:0.58rem; font-weight:700; letter-spacing:0.02em;">n</span></span>
+              <span style="font-size:0.62rem; color:#a0aec8; font-style:italic;">who wastes your time &nbsp;<span data-tip="Comma-separated. Companies matching any of these will be down-ranked or excluded from results." style="font-style:normal; background:#fdeecf; color:#f5a623; border-radius:20px; padding:1px 6px; font-size:0.58rem; font-weight:700; letter-spacing:0.02em;">n</span></span>
             </div>
             <div style="flex:1; display:flex; flex-direction:column;">
               <input id="icp_skip" type="text" placeholder="fewer than 10 staff, enterprise on SAP/Workday, government" style="border:none; background:transparent; padding:0.5rem 0.75rem 0.25rem; font-size:0.82rem; outline:none;" oninput="rebuildIcp(); updateHint(this)">
