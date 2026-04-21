@@ -4,7 +4,6 @@ Tests for store.py — ResultStore, CSV export helpers, _extract_domain.
 
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 
@@ -17,12 +16,7 @@ from store import ResultStore, _extract_domain, to_lemlist_csv, to_waalaxy_csv
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
-@pytest.fixture
-def store(tmp_path):
-    return ResultStore.__new__(ResultStore) | _make_store(tmp_path, "test-campaign")
-
-
-def _make_store(tmp_path, campaign_id):
+def _make_store(tmp_path, campaign_id="camp"):
     s = ResultStore(campaign_id)
     s._dir  = tmp_path / campaign_id
     s._path = s._dir / "results.json"
@@ -31,7 +25,7 @@ def _make_store(tmp_path, campaign_id):
 
 @pytest.fixture
 def fresh(tmp_path):
-    return _make_store(tmp_path, "camp")
+    return _make_store(tmp_path)
 
 
 def _company(name="Acme Ltd", website="https://acme.co.uk", **kw):
@@ -73,139 +67,131 @@ class TestExtractDomain:
 
 class TestAppendCompany:
     def test_adds_new_company(self, fresh):
-        assert fresh.append_company("LawFirms", _company()) is True
-        rows = fresh.get_segment("LawFirms")
+        assert fresh.append_company(_company()) is True
+        rows = fresh.get_rows()
         assert len(rows) == 1
         assert rows[0]["name"] == "Acme Ltd"
 
     def test_assigns_row_index_starting_at_1(self, fresh):
-        fresh.append_company("LawFirms", _company())
-        assert fresh.get_segment("LawFirms")[0]["row_index"] == 1
+        fresh.append_company(_company())
+        assert fresh.get_rows()[0]["row_index"] == 1
 
     def test_increments_row_index(self, fresh):
-        fresh.append_company("LawFirms", _company("A", "https://a.com"))
-        fresh.append_company("LawFirms", _company("B", "https://b.com"))
-        indices = [r["row_index"] for r in fresh.get_segment("LawFirms")]
+        fresh.append_company(_company("A", "https://a.com"))
+        fresh.append_company(_company("B", "https://b.com"))
+        indices = [r["row_index"] for r in fresh.get_rows()]
         assert indices == [1, 2]
 
     def test_dedup_by_name(self, fresh):
-        fresh.append_company("LawFirms", _company("Acme Ltd"))
-        added = fresh.append_company("LawFirms", _company("Acme Ltd", "https://other.com"))
+        fresh.append_company(_company("Acme Ltd"))
+        added = fresh.append_company(_company("Acme Ltd", "https://other.com"))
         assert added is False
-        assert len(fresh.get_segment("LawFirms")) == 1
+        assert len(fresh.get_rows()) == 1
 
     def test_dedup_name_case_insensitive(self, fresh):
-        fresh.append_company("LawFirms", _company("Acme Ltd"))
-        assert fresh.append_company("LawFirms", _company("ACME LTD")) is False
+        fresh.append_company(_company("Acme Ltd"))
+        assert fresh.append_company(_company("ACME LTD")) is False
 
     def test_dedup_by_domain(self, fresh):
-        fresh.append_company("LawFirms", _company("Acme", "https://acme.co.uk"))
-        assert fresh.append_company("LawFirms", _company("Acme 2", "https://acme.co.uk/page")) is False
-
-    def test_dedup_across_segments(self, fresh):
-        fresh.append_company("LawFirms", _company("Acme Ltd"))
-        assert fresh.append_company("Advisors", _company("Acme Ltd")) is False
+        fresh.append_company(_company("Acme", "https://acme.co.uk"))
+        assert fresh.append_company(_company("Acme 2", "https://acme.co.uk/page")) is False
 
     def test_empty_name_rejected(self, fresh):
-        assert fresh.append_company("LawFirms", {"name": "", "website": "https://x.com"}) is False
+        assert fresh.append_company({"name": "", "website": "https://x.com"}) is False
 
     def test_initialises_signals_and_contacts(self, fresh):
-        fresh.append_company("LawFirms", _company())
-        row = fresh.get_segment("LawFirms")[0]
+        fresh.append_company(_company())
+        row = fresh.get_rows()[0]
         assert row["signals"] == {}
         assert row["contacts"] == []
-
-    def test_creates_segment_if_absent(self, fresh):
-        fresh.append_company("NewSegment", _company())
-        assert "NewSegment" in fresh.all_segments()
 
 
 # ── update_company ────────────────────────────────────────────────────────────
 
 class TestUpdateCompany:
     def test_updates_field(self, fresh):
-        fresh.append_company("S", _company())
-        idx = fresh.get_segment("S")[0]["row_index"]
-        fresh.update_company("S", idx, {"notes": "Great firm"})
-        assert fresh.get_segment("S")[0]["notes"] == "Great firm"
+        fresh.append_company(_company())
+        idx = fresh.get_rows()[0]["row_index"]
+        fresh.update_company(idx, {"notes": "Great firm"})
+        assert fresh.get_rows()[0]["notes"] == "Great firm"
 
     def test_returns_false_for_missing_row(self, fresh):
-        assert fresh.update_company("S", 999, {"notes": "x"}) is False
+        assert fresh.update_company(999, {"notes": "x"}) is False
 
     def test_cannot_overwrite_row_index(self, fresh):
-        fresh.append_company("S", _company())
-        idx = fresh.get_segment("S")[0]["row_index"]
-        fresh.update_company("S", idx, {"row_index": 999})
-        assert fresh.get_segment("S")[0]["row_index"] == idx
+        fresh.append_company(_company())
+        idx = fresh.get_rows()[0]["row_index"]
+        fresh.update_company(idx, {"row_index": 999})
+        assert fresh.get_rows()[0]["row_index"] == idx
 
     def test_cannot_overwrite_signals(self, fresh):
-        fresh.append_company("S", _company())
-        idx = fresh.get_segment("S")[0]["row_index"]
-        fresh.update_company("S", idx, {"signals": {"k": "v"}})
-        assert fresh.get_segment("S")[0]["signals"] == {}
+        fresh.append_company(_company())
+        idx = fresh.get_rows()[0]["row_index"]
+        fresh.update_company(idx, {"signals": {"k": "v"}})
+        assert fresh.get_rows()[0]["signals"] == {}
 
 
 # ── update_signal ─────────────────────────────────────────────────────────────
 
 class TestUpdateSignal:
     def test_writes_yes(self, fresh):
-        fresh.append_company("S", _company())
-        idx = fresh.get_segment("S")[0]["row_index"]
-        fresh.update_signal("S", idx, "corporate", "Yes", "source.com")
-        sig = fresh.get_segment("S")[0]["signals"]["corporate"]
+        fresh.append_company(_company())
+        idx = fresh.get_rows()[0]["row_index"]
+        fresh.update_signal(idx, "corporate", "Yes", "source.com")
+        sig = fresh.get_rows()[0]["signals"]["corporate"]
         assert sig == {"value": "Yes", "source": "source.com"}
 
     def test_writes_no(self, fresh):
-        fresh.append_company("S", _company())
-        idx = fresh.get_segment("S")[0]["row_index"]
-        fresh.update_signal("S", idx, "corporate", "No", "not found")
-        assert fresh.get_segment("S")[0]["signals"]["corporate"]["value"] == "No"
+        fresh.append_company(_company())
+        idx = fresh.get_rows()[0]["row_index"]
+        fresh.update_signal(idx, "corporate", "No", "not found")
+        assert fresh.get_rows()[0]["signals"]["corporate"]["value"] == "No"
 
     def test_rejects_invalid_value(self, fresh):
-        fresh.append_company("S", _company())
-        idx = fresh.get_segment("S")[0]["row_index"]
-        result = fresh.update_signal("S", idx, "corporate", "Maybe", "")
+        fresh.append_company(_company())
+        idx = fresh.get_rows()[0]["row_index"]
+        result = fresh.update_signal(idx, "corporate", "Maybe", "")
         assert result is False
-        assert "corporate" not in fresh.get_segment("S")[0]["signals"]
+        assert "corporate" not in fresh.get_rows()[0]["signals"]
 
     def test_returns_false_for_missing_row(self, fresh):
-        assert fresh.update_signal("S", 999, "k", "Yes", "") is False
+        assert fresh.update_signal(999, "k", "Yes", "") is False
 
 
 # ── set_contacts ──────────────────────────────────────────────────────────────
 
 class TestSetContacts:
     def test_sets_contacts(self, fresh):
-        fresh.append_company("S", _company())
-        idx = fresh.get_segment("S")[0]["row_index"]
-        fresh.set_contacts("S", idx, ["Alice Smith | Partner | https://li.com/alice"])
-        assert len(fresh.get_segment("S")[0]["contacts"]) == 1
+        fresh.append_company(_company())
+        idx = fresh.get_rows()[0]["row_index"]
+        fresh.set_contacts(idx, ["Alice Smith | Partner | https://li.com/alice"])
+        assert len(fresh.get_rows()[0]["contacts"]) == 1
 
     def test_replaces_existing_contacts(self, fresh):
-        fresh.append_company("S", _company())
-        idx = fresh.get_segment("S")[0]["row_index"]
-        fresh.set_contacts("S", idx, ["A | Role | url1"])
-        fresh.set_contacts("S", idx, ["B | Role | url2", "C | Role | url3"])
-        assert len(fresh.get_segment("S")[0]["contacts"]) == 2
+        fresh.append_company(_company())
+        idx = fresh.get_rows()[0]["row_index"]
+        fresh.set_contacts(idx, ["A | Role | url1"])
+        fresh.set_contacts(idx, ["B | Role | url2", "C | Role | url3"])
+        assert len(fresh.get_rows()[0]["contacts"]) == 2
 
     def test_coerces_non_strings(self, fresh):
-        fresh.append_company("S", _company())
-        idx = fresh.get_segment("S")[0]["row_index"]
-        fresh.set_contacts("S", idx, [123, None])  # type: ignore[list-item]
-        assert all(isinstance(c, str) for c in fresh.get_segment("S")[0]["contacts"])
+        fresh.append_company(_company())
+        idx = fresh.get_rows()[0]["row_index"]
+        fresh.set_contacts(idx, [123, None])  # type: ignore[list-item]
+        assert all(isinstance(c, str) for c in fresh.get_rows()[0]["contacts"])
 
 
 # ── atomic write / corruption resilience ─────────────────────────────────────
 
 class TestAtomicWrite:
     def test_no_tmp_file_left_after_write(self, fresh):
-        fresh.append_company("S", _company())
+        fresh.append_company(_company())
         assert not list(fresh._dir.glob("*.tmp"))
 
     def test_load_returns_empty_on_corrupt_json(self, fresh):
         fresh._dir.mkdir(parents=True, exist_ok=True)
         fresh._path.write_text("{ not valid json", encoding="utf-8")
-        assert fresh.all_segments() == {}
+        assert fresh.get_rows() == []
 
 
 # ── CSV export ────────────────────────────────────────────────────────────────

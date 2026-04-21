@@ -20,7 +20,7 @@ from fastapi.datastructures import FormData
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 
-from campaign import Campaign, Region, LinkedInConfig, RatingConfig, Segment, SearchConfig, ContactConfig, Signal
+from campaign import Campaign, Region, LinkedInConfig, RatingConfig, SearchConfig, ContactConfig, Signal
 from run_manager import MODES, start_run, load_state, tail_log, validate_run_request
 from store import ResultStore, to_waalaxy_csv, to_lemlist_csv
 from suggest_signals import suggest as suggest_signals, suggest_more as suggest_more_signals
@@ -59,8 +59,7 @@ def _lines(form: FormData, key: str) -> list[str]:
 
 
 def _parse_campaign(form: FormData, campaign_id: str) -> Campaign:
-    n_signals  = max(0, _int(form, "signal_count"))
-    n_segments = max(0, _int(form, "segment_count"))
+    n_signals = max(0, _int(form, "signal_count"))
 
     signals = []
     for i in range(n_signals):
@@ -76,24 +75,6 @@ def _parse_campaign(form: FormData, campaign_id: str) -> Campaign:
             points=_int(form, f"signals.{i}.points", default=1),
         ))
 
-    segments = []
-    for i in range(n_segments):
-        segments.append(Segment(
-            name=_str(form, f"segments.{i}.name"),
-            description=_str(form, f"segments.{i}.description"),
-            icp_context=_str(form, f"segments.{i}.icp_context"),
-            enrich_context=_str(form, f"segments.{i}.enrich_context"),
-            signals_enabled=_bool(form, f"segments.{i}.signals_enabled"),
-            rating_enabled=_bool(form, f"segments.{i}.rating_enabled"),
-            search=SearchConfig(
-                tld_queries=_lines(form, f"segments.{i}.search.tld_queries"),
-                extra_queries=_lines(form, f"segments.{i}.search.extra_queries"),
-            ),
-            contact=ContactConfig(
-                roles=_csv(form, f"segments.{i}.contact.roles"),
-            ),
-        ))
-
     raw_id      = _str(form, "campaign_id") or _str(form, "name", "campaign").lower().replace(" ", "-")
     resolved_id = "".join(c if c.isalnum() or c in "-_" else "-" for c in raw_id).strip("-") or "my-campaign"
 
@@ -101,8 +82,6 @@ def _parse_campaign(form: FormData, campaign_id: str) -> Campaign:
         id=resolved_id if campaign_id == "__new__" else campaign_id,
         name=_str(form, "name"),
         product_context=_str(form, "product_context"),
-        spreadsheet_id=_str(form, "spreadsheet_id"),
-        credentials_file=_str(form, "credentials_file") or "melt2.json",
         export_format=_str(form, "export_format") or "waalaxy",
         region=Region(
             label=_str(form, "region.label"),
@@ -114,8 +93,14 @@ def _parse_campaign(form: FormData, campaign_id: str) -> Campaign:
             li_at=_str(form, "linkedin.li_at"),
             jsessionid=_str(form, "linkedin.jsessionid"),
         ),
+        search=SearchConfig(
+            tld_queries=_lines(form, "search.tld_queries"),
+            extra_queries=_lines(form, "search.extra_queries"),
+        ),
+        contact=ContactConfig(
+            roles=_csv(form, "contact.roles"),
+        ),
         signals=signals,
-        segments=segments,
         rating=RatingConfig(
             contact_threshold=_int(form, "rating.contact_threshold", default=8),
             sweet_spot_sizes=_csv(form, "rating.sweet_spot_sizes"),
@@ -134,13 +119,6 @@ def _validate(campaign: Campaign) -> list[str]:
         if sig.key in seen_keys:
             errors.append(f"Signal #{i + 1}: duplicate key '{sig.key}'.")
         seen_keys.add(sig.key)
-    seen_names: set[str] = set()
-    for i, seg in enumerate(campaign.segments):
-        if not seg.name:
-            errors.append(f"Segment #{i + 1} needs a name.")
-        if seg.name in seen_names:
-            errors.append(f"Segment #{i + 1}: duplicate name '{seg.name}'.")
-        seen_names.add(seg.name)
     return errors
 
 
@@ -160,16 +138,10 @@ def _render_editor(request: Request, campaign: Campaign,
 def _apply_structural_action(campaign: Campaign, action: str) -> Campaign:
     if action == "add_signal":
         campaign.signals.append(Signal(key="", name="", points=1))
-    elif action == "add_segment":
-        campaign.segments.append(Segment(name=""))
     elif action.startswith("remove_signal_"):
         idx = _safe_idx(action, "remove_signal_", len(campaign.signals))
         if idx is not None:
             campaign.signals.pop(idx)
-    elif action.startswith("remove_segment_"):
-        idx = _safe_idx(action, "remove_segment_", len(campaign.segments))
-        if idx is not None:
-            campaign.segments.pop(idx)
     return campaign
 
 
@@ -244,8 +216,7 @@ async def campaigns_list(request: Request, saved: str = ""):
 
 @app.get("/campaigns/new", response_class=HTMLResponse)
 async def new_campaign_get(request: Request):
-    draft = Campaign(id="my-campaign", name="", signals=list(_DEFAULT_SIGNALS),
-                     rating=RatingConfig(contact_threshold=8))
+    draft = Campaign(id="my-campaign", name="", signals=list(_DEFAULT_SIGNALS))
     return _render_editor(request, draft)
 
 
@@ -390,11 +361,10 @@ async def run_start(request: Request, campaign_id: str):
     except (FileNotFoundError, ValueError):
         return RedirectResponse("/", status_code=303)
 
-    form    = await request.form()
-    segment = _str(form, "segment")
-    mode    = _str(form, "mode", "search")
+    form = await request.form()
+    mode = _str(form, "mode", "search")
 
-    errors = validate_run_request(campaign_id, segment, mode, campaign.segment_names())
+    errors = validate_run_request(campaign_id, mode)
     if errors:
         return templates.TemplateResponse(request, "run.html", {
             "campaign": campaign,
@@ -403,7 +373,7 @@ async def run_start(request: Request, campaign_id: str):
             "flash":    {"type": "error", "message": " · ".join(errors)},
         }, status_code=422)
 
-    start_run(campaign_id, segment, mode)
+    start_run(campaign_id, mode)
     return RedirectResponse(f"/campaigns/{campaign_id}/run", status_code=303)
 
 
@@ -416,7 +386,6 @@ async def run_status(campaign_id: str):
         "status":       state.status,
         "current_step": state.current_step,
         "mode":         state.mode,
-        "segment":      state.segment,
         "started_at":   state.started_at,
         "finished_at":  state.finished_at,
         "error":        state.error,
@@ -427,46 +396,25 @@ async def run_status(campaign_id: str):
 # ── Routes: results ─────────────────────────────────────────────────────────────
 
 @app.get("/campaigns/{campaign_id}/results", response_class=HTMLResponse)
-async def results_redirect(campaign_id: str):
+async def results_view(request: Request, campaign_id: str):
     try:
         campaign = Campaign.load(campaign_id)
     except (FileNotFoundError, ValueError):
         return RedirectResponse("/", status_code=303)
-    first = campaign.segments[0].name if campaign.segments else None
-    if not first:
-        return RedirectResponse(f"/campaigns/{campaign_id}/edit", status_code=303)
-    return RedirectResponse(f"/campaigns/{campaign_id}/results/{first}", status_code=303)
-
-
-@app.get("/campaigns/{campaign_id}/results/{segment}", response_class=HTMLResponse)
-async def results_view(request: Request, campaign_id: str, segment: str):
-    try:
-        campaign = Campaign.load(campaign_id)
-    except (FileNotFoundError, ValueError):
-        return RedirectResponse("/", status_code=303)
-    store        = ResultStore(campaign_id)
-    all_segments = store.all_segments()
-    # If the requested segment doesn't exist in results yet, show empty state
-    # but ensure it's a valid campaign segment
-    valid_segments = campaign.segment_names()
-    if segment not in valid_segments and valid_segments:
-        return RedirectResponse(
-            f"/campaigns/{campaign_id}/results/{valid_segments[0]}", status_code=303
-        )
+    store = ResultStore(campaign_id)
+    rows  = store.get_rows()
     return templates.TemplateResponse(request, "results.html", {
-        "campaign":       campaign,
-        "all_segments":   all_segments,
-        "active_segment": segment,
-        "rows":           all_segments.get(segment, []),
+        "campaign": campaign,
+        "rows":     rows,
     })
 
 
 # ── Routes: CSV export ──────────────────────────────────────────────────────────
 
-@app.get("/campaigns/{campaign_id}/results/{segment}/export/waalaxy")
-async def export_waalaxy(campaign_id: str, segment: str):
-    rows     = ResultStore(campaign_id).get_segment(segment)
-    filename = f"{campaign_id}-{segment}-waalaxy.csv"
+@app.get("/campaigns/{campaign_id}/results/export/waalaxy")
+async def export_waalaxy(campaign_id: str):
+    rows     = ResultStore(campaign_id).get_rows()
+    filename = f"{campaign_id}-waalaxy.csv"
     return StreamingResponse(
         iter([to_waalaxy_csv(rows)]),
         media_type="text/csv",
@@ -474,10 +422,10 @@ async def export_waalaxy(campaign_id: str, segment: str):
     )
 
 
-@app.get("/campaigns/{campaign_id}/results/{segment}/export/lemlist")
-async def export_lemlist(campaign_id: str, segment: str):
-    rows     = ResultStore(campaign_id).get_segment(segment)
-    filename = f"{campaign_id}-{segment}-lemlist.csv"
+@app.get("/campaigns/{campaign_id}/results/export/lemlist")
+async def export_lemlist(campaign_id: str):
+    rows     = ResultStore(campaign_id).get_rows()
+    filename = f"{campaign_id}-lemlist.csv"
     return StreamingResponse(
         iter([to_lemlist_csv(rows)]),
         media_type="text/csv",

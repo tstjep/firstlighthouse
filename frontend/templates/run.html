@@ -131,19 +131,6 @@
     <form method="post" action="/campaigns/{{ campaign.id }}/run" id="run-form">
 
       <div class="section">
-        <div class="section-header"><h2>Segment</h2></div>
-        <label>
-          Which segment to run
-          <select name="segment" required>
-            {% for seg in campaign.segments %}
-            <option value="{{ seg.name }}">{{ seg.name }}</option>
-            {% endfor %}
-          </select>
-          <small class="help">Each segment is run independently. Run multiple segments one at a time.</small>
-        </label>
-      </div>
-
-      <div class="section">
         <div class="section-header"><h2>Run mode</h2></div>
         <div class="mode-grid" id="modeGrid">
           {% for key, m in modes.items() %}

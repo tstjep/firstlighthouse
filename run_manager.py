@@ -86,7 +86,6 @@ MODES: dict[str, dict] = {
 class RunState:
     run_id:       str
     campaign_id:  str
-    segment:      str
     mode:         str
     steps:        list[str]
     status:       str          # "running" | "done" | "error"
@@ -143,13 +142,10 @@ def is_running(campaign_id: str) -> bool:
 
 # ── Validation ────────────────────────────────────────────────────────────────
 
-def validate_run_request(campaign_id: str, segment: str, mode: str,
-                          valid_segments: list[str]) -> list[str]:
+def validate_run_request(campaign_id: str, mode: str) -> list[str]:
     errors: list[str] = []
     if mode not in MODES:
         errors.append(f"Unknown mode '{mode}'. Valid: {', '.join(MODES)}")
-    if segment not in valid_segments:
-        errors.append(f"Segment '{segment}' not found in campaign. Valid: {', '.join(valid_segments)}")
     if is_running(campaign_id):
         errors.append("A run is already in progress for this campaign.")
     return errors
@@ -157,7 +153,7 @@ def validate_run_request(campaign_id: str, segment: str, mode: str,
 
 # ── Launch ────────────────────────────────────────────────────────────────────
 
-def start_run(campaign_id: str, segment: str, mode: str) -> RunState:
+def start_run(campaign_id: str, mode: str) -> RunState:
     """Launch a background run. Caller must validate inputs first via validate_run_request."""
     mode_cfg = MODES[mode]
     steps    = mode_cfg["steps"]
@@ -172,7 +168,6 @@ def start_run(campaign_id: str, segment: str, mode: str) -> RunState:
     state = RunState(
         run_id=run_id,
         campaign_id=campaign_id,
-        segment=segment,
         mode=mode,
         steps=list(steps),
         status="running",
@@ -211,8 +206,7 @@ def _run_steps(state: RunState, mode_cfg: dict) -> None:
         log.flush()
 
     with log_file.open("w", encoding="utf-8") as log:
-        write(f"=== Run {state.run_id} | campaign={state.campaign_id} "
-              f"segment={state.segment} mode={state.mode} ===")
+        write(f"=== Run {state.run_id} | campaign={state.campaign_id} mode={state.mode} ===")
         write("")
 
         for step in mode_cfg["steps"]:
@@ -234,7 +228,6 @@ def _run_steps(state: RunState, mode_cfg: dict) -> None:
             extra = mode_cfg.get("extra_args", {}).get(step, [])
             cmd = [python, str(script),
                    "--campaign", state.campaign_id,
-                   "--tab",      state.segment,
                    *extra]
             write(f"  $ {' '.join(cmd)}")
 

@@ -8,57 +8,24 @@
     "country_restrict": "countryGB",
     "tld": "co.uk"
   },
-  "spreadsheet_id": "",
-  "credentials_file": "melt2.json",
   "linkedin": { "li_at": "", "jsessionid": "" },
   "export_format": "waalaxy",
-  "segments": [
-    {
-      "name": "UKSaaS",
-      "description": "UK-based B2B SaaS companies with 10–150 employees that have a sales team but no mature outbound process",
-      "icp_context": "UK B2B SaaS company, 10–150 staff, growing sales team, no dedicated RevOps",
-      "search": {
-        "tld_queries": [
-          "site:.co.uk \"B2B SaaS\" OR \"software platform\" \"VP Sales\" OR \"Head of Sales\" hiring",
-          "site:.co.uk \"SaaS\" \"Series A\" OR \"Series B\" 2023 OR 2024 UK",
-          "site:.co.uk \"software company\" \"SDR\" OR \"sales development\" \"join our team\""
-        ],
-        "extra_queries": [
-          "UK B2B SaaS company 10-150 employees \"VP of Sales\" OR \"Head of Growth\" hiring 2024",
-          "London OR Manchester \"SaaS startup\" \"Series A\" sales team growing",
-          "site:linkedin.com/company UK SaaS 50-150 employees B2B",
-          "\"outbound sales\" UK tech startup \"SDR\" OR \"BDR\" job posting",
-          "site:techcrunch.com UK SaaS Series A 2024 sales",
-          "site:eu.startups.com UK B2B software funding 2023 2024"
-        ]
-      },
-      "contact": {
-        "roles": ["VP Sales", "Head of Sales", "Head of Growth", "VP Revenue", "Chief Revenue Officer", "Founder"]
-      }
-    },
-    {
-      "name": "UKFintech",
-      "description": "UK fintech and insurtech companies with 10–150 employees building outbound sales motions",
-      "icp_context": "UK fintech or insurtech, 10–150 staff, B2B focus, expanding sales team",
-      "search": {
-        "tld_queries": [
-          "site:.co.uk \"fintech\" OR \"insurtech\" \"sales\" \"hiring\" \"Series A\" OR \"Series B\"",
-          "site:.co.uk \"payments\" OR \"lending\" OR \"insurance\" platform \"SDR\" OR \"VP Sales\"",
-          "site:.co.uk \"wealthtech\" OR \"regtech\" \"B2B\" \"sales team\" \"join us\""
-        ],
-        "extra_queries": [
-          "UK fintech B2B 50-150 employees \"VP Sales\" OR \"Head of Revenue\" 2024",
-          "London fintech Series A 2024 sales hiring",
-          "site:linkedin.com/company UK fintech 20-150 B2B sales",
-          "UK insurtech OR regtech \"outbound\" OR \"prospecting\" sales team",
-          "site:fintechfutures.com UK B2B fintech Series A 2024"
-        ]
-      },
-      "contact": {
-        "roles": ["VP Sales", "Head of Sales", "Chief Revenue Officer", "Co-founder", "Head of Growth"]
-      }
-    }
-  ],
+  "search": {
+    "tld_queries": [
+      "site:.co.uk \"B2B SaaS\" OR \"software platform\" \"VP Sales\" OR \"Head of Sales\" hiring",
+      "site:.co.uk \"SaaS\" \"Series A\" OR \"Series B\" 2023 OR 2024 UK",
+      "site:.co.uk \"software company\" \"SDR\" OR \"sales development\" \"join our team\""
+    ],
+    "extra_queries": [
+      "UK B2B SaaS company 10-150 employees \"VP of Sales\" OR \"Head of Growth\" hiring 2024",
+      "London OR Manchester \"SaaS startup\" \"Series A\" sales team growing",
+      "site:linkedin.com/company UK SaaS 50-150 employees B2B",
+      "\"outbound sales\" UK tech startup \"SDR\" OR \"BDR\" job posting"
+    ]
+  },
+  "contact": {
+    "roles": ["VP Sales", "Head of Sales", "Head of Growth", "VP Revenue", "Chief Revenue Officer", "Founder"]
+  },
   "signals": [
     {
       "key": "recent_funding",

@@ -10,9 +10,8 @@ from store import ResultStore
 class JsonAppendTool(Tool):
     """Append a company to the campaign result store (deduplicates automatically)."""
 
-    def __init__(self, store: ResultStore, segment: str):
-        self._store   = store
-        self._segment = segment
+    def __init__(self, store: ResultStore):
+        self._store = store
 
     @property
     def name(self) -> str:
@@ -50,7 +49,7 @@ class JsonAppendTool(Tool):
         hq_location: str = "",
         **_: Any,
     ) -> str:
-        added = self._store.append_company(self._segment, {
+        added = self._store.append_company({
             "name":       company_name,
             "website":    website,
             "linkedin":   linkedin,

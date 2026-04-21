@@ -95,11 +95,10 @@ async def _prefetch_searches(
 
 def fetch_incomplete_rows(
     store: ResultStore,
-    tab: str,
     min_rating: int = 0,
 ) -> list[dict]:
     """Return rows from the JSON store that are missing enrichment data (no notes)."""
-    rows = store.get_segment(tab)
+    rows = store.get_rows()
     incomplete = []
     for row in rows:
         if row.get("notes"):
@@ -129,14 +128,12 @@ def fetch_incomplete_rows(
 def build_task(
     campaign: Campaign,
     incomplete_rows: list[dict],
-    tab: str,
     prefetched: dict | None = None,
 ) -> str:
-    seg = campaign.segment(tab)
     context_note = (
-        f"\nCONTEXT: These companies are {seg.icp_context}. "
+        f"\nCONTEXT: These companies are potential prospects for: {campaign.product_context or campaign.name}. "
         "In the notes field, write a one-sentence description of what the company does "
-        f"and what specific work they focus on.\n"
+        "and what specific work they focus on.\n"
     )
 
     if prefetched is not None:
@@ -204,7 +201,6 @@ async def _run_enrichment_chunk(
     chunk: list[dict],
     prefetched: dict,
     campaign: Campaign,
-    tab: str,
     store: ResultStore,
     provider,
     model: str,
@@ -225,7 +221,7 @@ async def _run_enrichment_chunk(
         memory_window=60,
     )
 
-    agent.tools.register(JsonUpdateInfoTool(store=store, segment=tab))
+    agent.tools.register(JsonUpdateInfoTool(store=store))
 
     async def on_progress(text: str) -> None:
         if text:
@@ -233,33 +229,28 @@ async def _run_enrichment_chunk(
 
     run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
     result = await agent.process_direct(
-        content=build_task(campaign, chunk, tab=tab, prefetched=prefetched),
-        session_key=f"enrich:{campaign.id}:{tab}:{run_id}:c{chunk_num}",
+        content=build_task(campaign, chunk, prefetched=prefetched),
+        session_key=f"enrich:{campaign.id}:{run_id}:c{chunk_num}",
         channel="cli",
-        chat_id=f"enrich_{campaign.id}_{tab}_{run_id}_c{chunk_num}",
+        chat_id=f"enrich_{campaign.id}_{run_id}_c{chunk_num}",
         on_progress=on_progress,
     )
     await agent.close_mcp()
     return result.content if result else None
 
 
-async def main(campaign: Campaign, tab: str, max_rows: int = 0, min_rating: int = 0) -> None:
-    errors = []
+async def main(campaign: Campaign, max_rows: int = 0, min_rating: int = 0) -> None:
     if not cfg.SERPAPI_KEY:
-        errors.append("SERPAPI_KEY not set in config.py")
-    if errors:
-        for e in errors:
-            print(f"  ✗ {e}")
+        print("  ✗ SERPAPI_KEY not set in config.py")
         sys.exit(1)
 
-    seg   = campaign.segment(tab)
     store = ResultStore(campaign.id)
 
-    print(f"Starting enrichment agent — Campaign: {campaign.name}  Tab: {tab}")
+    print(f"Starting enrichment agent — Campaign: {campaign.name}")
     if min_rating > 0:
         print(f"Min rating filter: {min_rating}+")
 
-    incomplete = fetch_incomplete_rows(store, tab, min_rating=min_rating)
+    incomplete = fetch_incomplete_rows(store, min_rating=min_rating)
     if max_rows and len(incomplete) > max_rows:
         print(f"Rows needing enrichment: {len(incomplete)} (capped to {max_rows})")
         incomplete = incomplete[:max_rows]
@@ -273,7 +264,7 @@ async def main(campaign: Campaign, tab: str, max_rows: int = 0, min_rating: int 
     print(f"Model: {model}\n")
 
     prefetched = await _prefetch_searches(
-        incomplete, cfg.SERPAPI_KEY, enrich_context=seg.enrich_context
+        incomplete, cfg.SERPAPI_KEY, enrich_context=campaign.product_context or campaign.name
     )
 
     chunks = [incomplete[i:i + _CHUNK_SIZE] for i in range(0, len(incomplete), _CHUNK_SIZE)]
@@ -282,7 +273,7 @@ async def main(campaign: Campaign, tab: str, max_rows: int = 0, min_rating: int 
     for chunk_num, chunk in enumerate(chunks, 1):
         print(f"\n--- Chunk {chunk_num}/{len(chunks)} ({len(chunk)} companies) ---")
         result = await _run_enrichment_chunk(
-            chunk=chunk, prefetched=prefetched, campaign=campaign, tab=tab,
+            chunk=chunk, prefetched=prefetched, campaign=campaign,
             store=store, provider=provider, model=model,
             chunk_num=chunk_num, total_chunks=len(chunks),
         )
@@ -296,12 +287,9 @@ async def main(campaign: Campaign, tab: str, max_rows: int = 0, min_rating: int 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Company enrichment agent")
     parser.add_argument("--campaign",   required=True)
-    parser.add_argument("--tab",        default=None)
     parser.add_argument("--max-rows",   type=int, default=0)
     parser.add_argument("--min-rating", type=int, default=0)
     args = parser.parse_args()
 
     campaign = Campaign.load(args.campaign)
-    tab = args.tab or campaign.segments[0].name
-
-    asyncio.run(main(campaign, tab, max_rows=args.max_rows, min_rating=args.min_rating))
+    asyncio.run(main(campaign, max_rows=args.max_rows, min_rating=args.min_rating))

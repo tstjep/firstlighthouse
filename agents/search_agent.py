@@ -5,8 +5,8 @@ Company Search Agent
 Discovers companies in the target market and records them in the local JSON store.
 
 Usage:
-    python agents/search_agent.py --campaign hr-saas-ch --tab ProfServices
-    python agents/search_agent.py --campaign sales-tools-uk --tab UKSaaS
+    python agents/search_agent.py --campaign hr-saas-ch
+    python agents/search_agent.py --campaign sales-tools-uk --max-rows 5
 """
 
 import argparse
@@ -29,14 +29,14 @@ from nanobot.agent.loop import AgentLoop
 from nanobot.bus.queue import MessageBus
 
 
-def build_task(campaign: Campaign, tab: str) -> str:
-    seg = campaign.segment(tab)
-    tld_block   = "\n".join(f"  - {q}" for q in seg.search.tld_queries)
-    extra_block = "\n".join(f"  - {q}" for q in seg.search.extra_queries)
+def build_task(campaign: Campaign) -> str:
+    tld_block   = "\n".join(f"  - {q}" for q in campaign.search.tld_queries)
+    extra_block = "\n".join(f"  - {q}" for q in campaign.search.extra_queries)
     tld = campaign.region.tld
+    profile = campaign.product_context or campaign.name
 
     return f"""
-You are a lead-generation researcher. Find companies that match this profile: {seg.description}.
+You are a lead-generation researcher. Find companies that match this profile: {profile}.
 Record every real company you find using the record_company tool.
 
 Many companies in this category don't use .{tld} — they may use .com, .io, .org, or others.
@@ -59,7 +59,7 @@ Instructions:
 
 4. For EVERY real company found, immediately call record_company.
    The tool automatically skips duplicates.
-   Only skip: companies clearly outside the target region, or not matching: {seg.description}.
+   Only skip: companies clearly outside the target region, or not matching: {profile}.
 
 5. After every 5 searches, keep going with new angles you haven't tried yet.
 
@@ -69,30 +69,20 @@ Be exhaustive. Cover the whole {campaign.region.label} — not just major cities
 """.strip()
 
 
-async def main(campaign: Campaign, tab: str) -> None:
-    errors = []
+async def main(campaign: Campaign) -> None:
     if not cfg.SERPAPI_KEY:
-        errors.append("SERPAPI_KEY is not set in config.py")
-    if tab not in campaign.all_tab_names():
-        errors.append(f"Tab '{tab}' not found in campaign. Available: {campaign.all_tab_names()}")
-    if errors:
-        print("[startup] Configuration errors — cannot continue:")
-        for msg in errors:
-            print(f"  ✗ {msg}")
+        print("  ✗ SERPAPI_KEY is not set in config.py")
         sys.exit(1)
 
-    seg   = campaign.segment(tab)
     store = ResultStore(campaign.id)
-
     provider, model = build_provider()
 
     print(f"\nStarting search agent")
     print(f"Campaign: {campaign.name}")
-    print(f"Tab:      {tab} — {seg.description}")
     print(f"Model:    {model}")
     print(f"Store:    data/{campaign.id}/results.json\n")
 
-    min_searches = len(seg.search.tld_queries) + len(seg.search.extra_queries)
+    min_searches = len(campaign.search.tld_queries) + len(campaign.search.extra_queries)
     max_iter = min_searches * 8 + 50
 
     bus = MessageBus()
@@ -105,7 +95,7 @@ async def main(campaign: Campaign, tab: str) -> None:
     )
 
     agent.tools.register(SerpSearchTool(api_key=cfg.SERPAPI_KEY, **campaign.serp_params()))
-    agent.tools.register(JsonAppendTool(store=store, segment=tab))
+    agent.tools.register(JsonAppendTool(store=store))
 
     print("Agent running — streaming progress below:\n" + "-" * 60)
 
@@ -115,10 +105,10 @@ async def main(campaign: Campaign, tab: str) -> None:
 
     run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
     result = await agent.process_direct(
-        content=build_task(campaign, tab),
-        session_key=f"search:{campaign.id}:{tab}:{run_id}",
+        content=build_task(campaign),
+        session_key=f"search:{campaign.id}:{run_id}",
         channel="cli",
-        chat_id=f"search_{campaign.id}_{tab}_{run_id}",
+        chat_id=f"search_{campaign.id}_{run_id}",
         on_progress=on_progress,
     )
 
@@ -134,10 +124,7 @@ async def main(campaign: Campaign, tab: str) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Company search agent")
     parser.add_argument("--campaign", required=True, help="Campaign ID")
-    parser.add_argument("--tab",      default=None,  help="Segment / tab name")
     args = parser.parse_args()
 
     campaign = Campaign.load(args.campaign)
-    tab = args.tab or campaign.segments[0].name
-
-    asyncio.run(main(campaign, tab))
+    asyncio.run(main(campaign))

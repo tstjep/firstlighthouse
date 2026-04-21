@@ -4,7 +4,6 @@ Tests for campaign.py — Pydantic schema, validators, persistence helpers.
 
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 
@@ -13,26 +12,7 @@ from pydantic import ValidationError
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from campaign import Campaign, RatingConfig, Region, Segment, Signal, _col_letter, _resolve_env
-
-
-# ── _col_letter ───────────────────────────────────────────────────────────────
-
-class TestColLetter:
-    def test_zero_is_A(self):
-        assert _col_letter(0) == "A"
-
-    def test_25_is_Z(self):
-        assert _col_letter(25) == "Z"
-
-    def test_26_is_AA(self):
-        assert _col_letter(26) == "AA"
-
-    def test_51_is_AZ(self):
-        assert _col_letter(51) == "AZ"
-
-    def test_52_is_BA(self):
-        assert _col_letter(52) == "BA"
+from campaign import Campaign, RatingConfig, Region, Signal, SearchConfig, ContactConfig, _resolve_env
 
 
 # ── _resolve_env ──────────────────────────────────────────────────────────────
@@ -71,18 +51,6 @@ class TestSignalValidator:
     def test_negative_points_allowed(self):
         s = Signal(key="x", name="X", points=-3)
         assert s.points == -3
-
-
-# ── Segment validator ─────────────────────────────────────────────────────────
-
-class TestSegmentValidator:
-    def test_spaces_replaced_with_underscores(self):
-        seg = Segment(name="Law Firms")
-        assert seg.name == "Law_Firms"
-
-    def test_leading_trailing_spaces_stripped(self):
-        seg = Segment(name="  Advisors  ")
-        assert seg.name == "Advisors"
 
 
 # ── RatingConfig validator ────────────────────────────────────────────────────
@@ -141,6 +109,29 @@ class TestExportFormatValidator:
         assert Campaign(id="x", name="T", export_format="garbage").export_format == "waalaxy"
 
 
+# ── Campaign search / contact config ─────────────────────────────────────────
+
+class TestCampaignSearchContact:
+    def test_search_defaults_empty(self):
+        c = Campaign(id="x", name="T")
+        assert c.search.tld_queries == []
+        assert c.search.extra_queries == []
+
+    def test_contact_defaults_empty(self):
+        c = Campaign(id="x", name="T")
+        assert c.contact.roles == []
+
+    def test_search_queries_stored(self):
+        c = Campaign(id="x", name="T",
+                     search=SearchConfig(tld_queries=["immigration law firms"], extra_queries=["visa lawyers UK"]))
+        assert c.search.tld_queries == ["immigration law firms"]
+        assert c.search.extra_queries == ["visa lawyers UK"]
+
+    def test_contact_roles_stored(self):
+        c = Campaign(id="x", name="T", contact=ContactConfig(roles=["Managing Partner", "Head of Immigration"]))
+        assert c.contact.roles == ["Managing Partner", "Head of Immigration"]
+
+
 # ── Campaign derived helpers ──────────────────────────────────────────────────
 
 class TestCampaignHelpers:
@@ -152,44 +143,17 @@ class TestCampaignHelpers:
                 Signal(key="corp", name="Corporate", points=3),
                 Signal(key="growth", name="Growth", points=1),
             ],
-            segments=[
-                Segment(name="LawFirms"),
-                Segment(name="Advisors"),
-            ],
         )
 
-    def test_signal_cols_keys(self):
-        cols = self._campaign().signal_cols()
-        assert set(cols.keys()) == {"corp", "growth"}
+    def test_serp_params_returns_gl_and_cr(self):
+        c = Campaign(id="x", name="T",
+                     region=Region(country_code="gb", country_restrict="countryGB"))
+        assert c.serp_params() == {"gl": "gb", "cr": "countryGB"}
 
-    def test_signal_cols_start_at_J(self):
-        cols = self._campaign().signal_cols()
-        assert cols["corp"][0] == "J"   # index 9 → J
-        assert cols["corp"][1] == "K"
-        assert cols["growth"][0] == "L"
-
-    def test_contacts_col_after_signals(self):
+    def test_signals_list(self):
         c = self._campaign()
-        # 2 signals × 2 cols each = 4 cols after index 9 → index 13 → N
-        assert c.contacts_col_idx() == 13
-
-    def test_segment_names(self):
-        assert self._campaign().segment_names() == ["LawFirms", "Advisors"]
-
-    def test_segment_lookup(self):
-        seg = self._campaign().segment("LawFirms")
-        assert seg.name == "LawFirms"
-
-    def test_segment_lookup_missing_raises_key_error(self):
-        with pytest.raises(KeyError):
-            self._campaign().segment("DoesNotExist")
-
-    def test_signal_tab_names_only_enabled(self):
-        c = Campaign(id="x", name="T", segments=[
-            Segment(name="A", signals_enabled=True),
-            Segment(name="B", signals_enabled=False),
-        ])
-        assert c.signal_tab_names() == {"A"}
+        assert len(c.signals) == 2
+        assert c.signals[0].key == "corp"
 
 
 # ── Campaign persistence ──────────────────────────────────────────────────────
@@ -202,6 +166,20 @@ class TestCampaignPersistence:
         loaded = Campaign.load("camp1", campaigns_dir=tmp_path)
         assert loaded.name == "Test Campaign"
         assert loaded.signals[0].key == "s"
+
+    def test_search_config_survives_roundtrip(self, tmp_path):
+        c = Campaign(id="c", name="T",
+                     search=SearchConfig(tld_queries=["law firms uk"]))
+        c.save(campaigns_dir=tmp_path)
+        loaded = Campaign.load("c", campaigns_dir=tmp_path)
+        assert loaded.search.tld_queries == ["law firms uk"]
+
+    def test_contact_config_survives_roundtrip(self, tmp_path):
+        c = Campaign(id="c2", name="T",
+                     contact=ContactConfig(roles=["Managing Partner"]))
+        c.save(campaigns_dir=tmp_path)
+        loaded = Campaign.load("c2", campaigns_dir=tmp_path)
+        assert loaded.contact.roles == ["Managing Partner"]
 
     def test_save_is_atomic_no_tmp_left(self, tmp_path):
         Campaign(id="c", name="T").save(campaigns_dir=tmp_path)

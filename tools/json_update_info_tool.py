@@ -9,9 +9,8 @@ from store import ResultStore
 class JsonUpdateInfoTool(Tool):
     """Update enriched info fields for a company row in the result store."""
 
-    def __init__(self, store: ResultStore, segment: str):
-        self._store   = store
-        self._segment = segment
+    def __init__(self, store: ResultStore):
+        self._store = store
 
     @property
     def name(self) -> str:
@@ -58,7 +57,7 @@ class JsonUpdateInfoTool(Tool):
         if hq_location: fields["hq"]     = hq_location
         if notes:      fields["notes"]    = notes
 
-        ok = self._store.update_company(self._segment, row_index, fields)
+        ok = self._store.update_company(row_index, fields)
         if ok:
             return f"Updated row {row_index}: {company_name}"
         return f"Row {row_index} not found"

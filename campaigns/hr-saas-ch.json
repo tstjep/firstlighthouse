@@ -8,56 +8,24 @@
     "country_restrict": "countryCH",
     "tld": "ch"
   },
-  "spreadsheet_id": "",
-  "credentials_file": "melt2.json",
   "linkedin": { "li_at": "", "jsessionid": "" },
   "export_format": "waalaxy",
-  "segments": [
-    {
-      "name": "ProfServices",
-      "description": "Swiss professional-services SMBs (accounting, consulting, engineering, legal) with 20–200 staff",
-      "icp_context": "Swiss professional services firm, 20–200 employees, using manual HR or legacy payroll software",
-      "search": {
-        "tld_queries": [
-          "site:.ch \"Treuhand\" OR \"Beratung\" \"Stellenangebote\" \"HR\" -enterprise",
-          "site:.ch \"Ingenieurbüro\" OR \"Planungsbüro\" \"Karriere\" OR \"Jobs\"",
-          "site:.ch \"Wirtschaftsprüfung\" OR \"Revisionsgesellschaft\" \"Team\" \"Mitarbeitende\""
-        ],
-        "extra_queries": [
-          "Schweiz Treuhand KMU HR Software Stellenangebote",
-          "Switzerland SMB consulting firm \"HR manager\" OR \"Personalleitung\" hiring",
-          "site:linkedin.com/company Schweiz Beratung 50-200 Mitarbeitende",
-          "\"Personalvermittlung\" OR \"Personalmanagement\" KMU Schweiz Software",
-          "Zürich OR Bern OR Basel Ingenieurbüro Personalwesen Stellenangebote"
-        ]
-      },
-      "contact": {
-        "roles": ["CEO", "Geschäftsführer", "Head of HR", "Personalleitung", "CFO"]
-      }
-    },
-    {
-      "name": "LightManufacturing",
-      "description": "Swiss light-manufacturing SMBs (precision parts, medtech, food, packaging) with 20–200 staff",
-      "icp_context": "Swiss manufacturing SMB, 20–200 employees, manual payroll or legacy HR system",
-      "search": {
-        "tld_queries": [
-          "site:.ch \"Präzisionsteile\" OR \"Medtech\" \"Stellenangebote\" \"HR\" OR \"Personal\"",
-          "site:.ch \"Lebensmittelproduktion\" OR \"Verpackung\" \"Karriere\" \"KMU\"",
-          "site:.ch \"Maschinenbau\" \"Mitarbeitende\" \"HR\" OR \"Personalwesen\""
-        ],
-        "extra_queries": [
-          "Schweiz Maschinenbau KMU 50 Mitarbeitende HR Software",
-          "Swiss medtech SMB \"head of HR\" OR \"Personalverantwortliche\" hiring",
-          "site:linkedin.com/company Schweiz Fertigung 20-200 Mitarbeitende",
-          "Zürich OR Winterthur OR St. Gallen Produktion Personalwesen Stellen",
-          "Swiss manufacturing company payroll software replacement"
-        ]
-      },
-      "contact": {
-        "roles": ["CEO", "Geschäftsführer", "HR Manager", "Personalleitung", "Operations Manager"]
-      }
-    }
-  ],
+  "search": {
+    "tld_queries": [
+      "site:.ch \"Treuhand\" OR \"Beratung\" \"Stellenangebote\" \"HR\" -enterprise",
+      "site:.ch \"Ingenieurbüro\" OR \"Planungsbüro\" \"Karriere\" OR \"Jobs\"",
+      "site:.ch \"Wirtschaftsprüfung\" OR \"Revisionsgesellschaft\" \"Team\" \"Mitarbeitende\""
+    ],
+    "extra_queries": [
+      "Schweiz Treuhand KMU HR Software Stellenangebote",
+      "Switzerland SMB consulting firm \"HR manager\" OR \"Personalleitung\" hiring",
+      "site:linkedin.com/company Schweiz Beratung 50-200 Mitarbeitende",
+      "Zürich OR Bern OR Basel Ingenieurbüro Personalwesen Stellenangebote"
+    ]
+  },
+  "contact": {
+    "roles": ["CEO", "Geschäftsführer", "Head of HR", "Personalleitung", "CFO"]
+  },
   "signals": [
     {
       "key": "active_hiring",

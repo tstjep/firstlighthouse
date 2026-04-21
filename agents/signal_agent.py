@@ -203,12 +203,11 @@ def _build_fallback_queries(company_name: str, signals: list[dict]) -> tuple[str
 
 def read_companies(
     store: ResultStore,
-    tab: str,
     skip_done: bool,
     min_rating: int = 0,
 ) -> list[dict]:
     """Return companies from the store that need signal detection."""
-    rows = store.get_segment(tab)
+    rows = store.get_rows()
     companies = []
     for row in rows:
         website = (row.get("website") or "").strip()
@@ -311,7 +310,6 @@ async def _write_company_signals(
 
 async def main(
     campaign: Campaign,
-    tab: str,
     skip_done: bool = False,
     dry_run: bool = False,
     min_rating: int = 0,
@@ -341,12 +339,12 @@ async def main(
     task_prompt = _build_task_prompt(signal_defs)
 
     print("=" * 60)
-    print(f"Signal detection — Campaign: {campaign.name}  Tab: {tab}")
+    print(f"Signal detection — Campaign: {campaign.name}")
     print(f"Signals:    {', '.join(signal_keys)}")
     print(f"Skip done:  {skip_done}  |  Dry-run: {dry_run}")
     print("=" * 60)
 
-    companies = read_companies(store, tab, skip_done=skip_done, min_rating=min_rating)
+    companies = read_companies(store, skip_done=skip_done, min_rating=min_rating)
     if max_rows and len(companies) > max_rows:
         print(f"Capping to {max_rows} rows (--max-rows)")
         companies = companies[:max_rows]
@@ -360,7 +358,7 @@ async def main(
     provider, model = build_provider()
     print(f"Model: {model}\n")
 
-    tool = JsonUpdateSignalTool(store=store, segment=tab, valid_signals=signal_keys)
+    tool = JsonUpdateSignalTool(store=store, valid_signals=signal_keys)
 
     all_results:  list[dict] = []
     serp_errors = llm_errors = write_errors = 0
@@ -475,7 +473,6 @@ async def main(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Detect buying signals for companies.")
     parser.add_argument("--campaign",     required=True, help="Campaign ID")
-    parser.add_argument("--tab",          default=None,  help="Segment name")
     parser.add_argument("--skip-done",    action="store_true", help="Skip rows that already have signals")
     parser.add_argument("--dry-run",      action="store_true", help="Print results without writing")
     parser.add_argument("--min-rating",   type=int, default=0, metavar="N")
@@ -485,14 +482,13 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     campaign = Campaign.load(args.campaign)
-    tab = args.tab or campaign.segments[0].name
 
     only_signals = None
     if args.only_signals:
         only_signals = {s.strip() for s in args.only_signals.split(",")}
 
     asyncio.run(main(
-        campaign, tab,
+        campaign,
         skip_done=args.skip_done,
         dry_run=args.dry_run,
         min_rating=args.min_rating,

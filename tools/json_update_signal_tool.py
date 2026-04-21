@@ -9,9 +9,8 @@ from store import ResultStore
 class JsonUpdateSignalTool(Tool):
     """Update one buying signal for a company row in the result store."""
 
-    def __init__(self, store: ResultStore, segment: str, valid_signals: list[str]):
+    def __init__(self, store: ResultStore, valid_signals: list[str]):
         self._store         = store
-        self._segment       = segment
         self._valid_signals = valid_signals
 
     @property
@@ -51,7 +50,7 @@ class JsonUpdateSignalTool(Tool):
         if signal not in self._valid_signals:
             return f"Unknown signal {signal!r}. Valid: {self._valid_signals}"
         value = "Yes" if detected else "No"
-        ok = self._store.update_signal(self._segment, row_index, signal, value, source or "not found")
+        ok = self._store.update_signal(row_index, signal, value, source or "not found")
         if ok:
             return f"Row {row_index}: {signal} = {value}"
         return f"Row {row_index} not found"

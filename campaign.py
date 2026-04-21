@@ -1,11 +1,11 @@
 """Campaign configuration schema for firstlighthouse.
 
 A Campaign captures everything domain-specific:
-  - what companies to look for (segments + search queries)
+  - what companies to look for (search queries)
   - what buying signals to detect (signal definitions + LLM prompts)
   - how to score companies (rating rules)
-  - what contacts to find (role priorities per segment)
-  - which region / Google Sheet to use
+  - what contacts to find (role priorities)
+  - which region to use
 """
 
 from __future__ import annotations
@@ -41,23 +41,6 @@ class SearchConfig(BaseModel):
 
 class ContactConfig(BaseModel):
     roles: list[str] = Field(default_factory=list)
-
-
-class Segment(BaseModel):
-    """One target audience tab."""
-    name:            str
-    description:     str = ""
-    icp_context:     str = ""
-    enrich_context:  str = ""
-    signals_enabled: bool = True
-    rating_enabled:  bool = True
-    search:  SearchConfig  = Field(default_factory=SearchConfig)
-    contact: ContactConfig = Field(default_factory=ContactConfig)
-
-    @field_validator("name")
-    @classmethod
-    def name_no_spaces(cls, v: str) -> str:
-        return v.strip().replace(" ", "_")
 
 
 class Signal(BaseModel):
@@ -104,14 +87,13 @@ class Campaign(BaseModel):
     id:              str
     name:            str
     product_context: str = ""
-    region:          Region          = Field(default_factory=Region)
-    spreadsheet_id:  str = ""
-    credentials_file: str = "melt2.json"
-    linkedin:        LinkedInConfig  = Field(default_factory=LinkedInConfig)
+    region:          Region        = Field(default_factory=Region)
+    linkedin:        LinkedInConfig = Field(default_factory=LinkedInConfig)
     export_format:   str = "waalaxy"
-    segments:        list[Segment]   = Field(default_factory=list)
-    signals:         list[Signal]    = Field(default_factory=list)
-    rating:          RatingConfig    = Field(default_factory=RatingConfig)
+    search:          SearchConfig  = Field(default_factory=SearchConfig)
+    contact:         ContactConfig = Field(default_factory=ContactConfig)
+    signals:         list[Signal]  = Field(default_factory=list)
+    rating:          RatingConfig  = Field(default_factory=RatingConfig)
 
     @field_validator("id")
     @classmethod
@@ -159,7 +141,6 @@ class Campaign(BaseModel):
         d = campaigns_dir or CAMPAIGNS_DIR
         d.mkdir(parents=True, exist_ok=True)
         path = d / f"{self.id}.json"
-        # Write to temp file first, then rename — prevents partial writes
         tmp = path.with_suffix(".json.tmp")
         tmp.write_text(self.model_dump_json(indent=2), encoding="utf-8")
         tmp.replace(path)
@@ -170,64 +151,11 @@ class Campaign(BaseModel):
 
     # ── Derived helpers ────────────────────────────────────────────────────────
 
-    def segment(self, name: str) -> Segment:
-        for seg in self.segments:
-            if seg.name == name:
-                return seg
-        raise KeyError(f"Segment '{name}' not found in campaign '{self.id}'")
-
-    def segment_names(self) -> list[str]:
-        return [s.name for s in self.segments]
-
-    def signal_cols(self) -> dict[str, tuple[str, str]]:
-        """Return {signal_key: (bool_col_letter, source_col_letter)}."""
-        BASE = 9
-        return {
-            sig.key: (_col_letter(BASE + i * 2), _col_letter(BASE + i * 2 + 1))
-            for i, sig in enumerate(self.signals)
-        }
-
-    def signal_col_indices(self) -> dict[str, tuple[int, int]]:
-        BASE = 9
-        return {
-            sig.key: (BASE + i * 2, BASE + i * 2 + 1)
-            for i, sig in enumerate(self.signals)
-        }
-
-    def contacts_col_idx(self) -> int:
-        return 9 + len(self.signals) * 2
-
-    def signal_tab_names(self) -> set[str]:
-        return {s.name for s in self.segments if s.signals_enabled}
-
-    def rating_tab_names(self) -> set[str]:
-        return {s.name for s in self.segments if s.rating_enabled}
-
-    def all_tab_names(self) -> list[str]:
-        return [s.name for s in self.segments]
-
     def serp_params(self) -> dict[str, str]:
         return {"gl": self.region.country_code, "cr": self.region.country_restrict}
 
-    def sheet_range_end(self) -> str:
-        return _col_letter(self.contacts_col_idx())
-
-    def all_signal_col_indices(self) -> list[int]:
-        BASE = 9
-        return [BASE + i * 2 for i in range(len(self.signals))]
-
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
-
-def _col_letter(idx: int) -> str:
-    """Convert 0-based column index to spreadsheet letter (A, B, …, Z, AA, …)."""
-    result = ""
-    n = idx + 1
-    while n:
-        n, rem = divmod(n - 1, 26)
-        result = chr(65 + rem) + result
-    return result
-
 
 def _resolve_env(value: str) -> str:
     if not value:

@@ -3,60 +3,15 @@
 {% block page_title %}{{ campaign.name }}{% endblock %}
 {% block page_subtitle %}<p class="subtitle"><a href="/" style="color:inherit;text-decoration:none;">← Campaigns</a> &nbsp;·&nbsp; <a href="/campaigns/{{ campaign.id }}/edit" style="color:inherit;text-decoration:none;">Edit campaign</a></p>{% endblock %}
 {% block page_actions %}
-  <a href="/campaigns/{{ campaign.id }}/results/{{ active_segment }}/export/waalaxy"
+  <a href="/campaigns/{{ campaign.id }}/results/export/waalaxy"
      role="button" class="secondary outline btn-sm">⬇ Waalaxy CSV</a>
-  <a href="/campaigns/{{ campaign.id }}/results/{{ active_segment }}/export/lemlist"
+  <a href="/campaigns/{{ campaign.id }}/results/export/lemlist"
      role="button" class="secondary outline btn-sm">⬇ Lemlist CSV</a>
 {% endblock %}
 {% block content_class %}wide{% endblock %}
 
 {% block content %}
 <style>
-  /* Results-specific overrides */
-
-
-  /* Segment tabs */
-  .seg-tabs {
-    display: flex;
-    gap: 0.25rem;
-    border-bottom: 2px solid var(--pico-muted-border-color);
-    margin-bottom: 1.5rem;
-    overflow-x: auto;
-  }
-
-  .seg-tab {
-    padding: 0.5rem 1.1rem;
-    border-radius: 6px 6px 0 0;
-    font-size: 0.875rem;
-    font-weight: 500;
-    text-decoration: none;
-    color: var(--pico-muted-color);
-    border: 1px solid transparent;
-    border-bottom: none;
-    white-space: nowrap;
-    margin-bottom: -2px;
-  }
-
-  .seg-tab:hover { color: var(--pico-color); background: var(--pico-muted-background-color); }
-
-  .seg-tab.active {
-    color: var(--pico-primary);
-    background: var(--pico-background-color);
-    border-color: var(--pico-muted-border-color);
-    border-bottom-color: var(--pico-background-color);
-    font-weight: 600;
-  }
-
-  .seg-tab .count {
-    display: inline-block;
-    background: var(--pico-muted-background-color);
-    border-radius: 10px;
-    padding: 0 0.4rem;
-    font-size: 0.72rem;
-    margin-left: 0.3rem;
-    font-weight: 400;
-  }
-
   /* Toolbar */
   .toolbar {
     display: flex;
@@ -151,20 +106,6 @@
   .empty-state p { font-size: 1rem; margin-bottom: 0.5rem; }
   .empty-state small { font-size: 0.85rem; }
 </style>
-
-<!-- Segment tabs -->
-<nav class="seg-tabs">
-  {% for seg_name, rows in all_segments.items() %}
-  <a href="/campaigns/{{ campaign.id }}/results/{{ seg_name }}"
-     class="seg-tab {{ 'active' if seg_name == active_segment else '' }}">
-    {{ seg_name }}
-    <span class="count">{{ rows | length }}</span>
-  </a>
-  {% endfor %}
-  {% if not all_segments %}
-  <span class="seg-tab active">No data yet</span>
-  {% endif %}
-</nav>
 
 <!-- Toolbar -->
 <div class="toolbar">
@@ -283,9 +224,9 @@
 
 {% else %}
 <div class="empty-state">
-  <p>No companies yet in <strong>{{ active_segment }}</strong>.</p>
-  <small>Run the search agent to populate this segment:<br>
-    <code>PYTHONPATH="" ./venv/bin/python agents/search_agent.py --campaign {{ campaign.id }} --tab {{ active_segment }}</code>
+  <p>No companies yet.</p>
+  <small>Run the search agent to start finding prospects:<br>
+    <code>PYTHONPATH="" ./venv/bin/python agents/search_agent.py --campaign {{ campaign.id }}</code>
   </small>
 </div>
 {% endif %}

@@ -27,7 +27,6 @@ def _state(**kw):
     defaults = dict(
         run_id="20240101-120000",
         campaign_id="camp",
-        segment="LawFirms",
         mode="search",
         steps=["search"],
         status="running",
@@ -45,38 +44,34 @@ def _state(**kw):
 
 class TestValidateRunRequest:
     def test_valid_request(self):
-        errors = rm.validate_run_request("camp", "LawFirms", "search", ["LawFirms", "Advisors"])
+        errors = rm.validate_run_request("camp", "search")
         assert errors == []
 
     def test_invalid_mode(self):
-        errors = rm.validate_run_request("camp", "LawFirms", "nonsense", ["LawFirms"])
+        errors = rm.validate_run_request("camp", "nonsense")
         assert any("mode" in e.lower() or "nonsense" in e for e in errors)
-
-    def test_invalid_segment(self):
-        errors = rm.validate_run_request("camp", "Ghost", "search", ["LawFirms"])
-        assert any("Ghost" in e for e in errors)
 
     def test_blocks_concurrent_run(self, tmp_path):
         state = _state(campaign_id="camp")
         rm._save_state(state)
-        errors = rm.validate_run_request("camp", "LawFirms", "search", ["LawFirms"])
+        errors = rm.validate_run_request("camp", "search")
         assert any("already in progress" in e for e in errors)
 
     def test_allows_run_when_done(self, tmp_path):
         state = _state(campaign_id="camp", status="done")
         rm._save_state(state)
-        errors = rm.validate_run_request("camp", "LawFirms", "search", ["LawFirms"])
+        errors = rm.validate_run_request("camp", "search")
         assert errors == []
 
     def test_allows_run_when_error(self, tmp_path):
         state = _state(campaign_id="camp", status="error")
         rm._save_state(state)
-        errors = rm.validate_run_request("camp", "LawFirms", "search", ["LawFirms"])
+        errors = rm.validate_run_request("camp", "search")
         assert errors == []
 
     def test_all_modes_valid(self):
         for mode in rm.MODES:
-            errors = rm.validate_run_request("c", "S", mode, ["S"])
+            errors = rm.validate_run_request("c", mode)
             assert not any("mode" in e.lower() for e in errors), f"mode {mode!r} unexpectedly failed"
 
 
@@ -104,7 +99,7 @@ class TestStatePersistence:
         path = tmp_path / "partial" / "run_state.json"
         path.parent.mkdir()
         path.write_text(json.dumps({
-            "run_id": "x", "campaign_id": "partial", "segment": "S",
+            "run_id": "x", "campaign_id": "partial",
             "mode": "search", "steps": ["search"], "status": "done",
         }), encoding="utf-8")
         state = rm.load_state("partial")

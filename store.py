@@ -2,7 +2,6 @@
 Local JSON data store for firstlighthouse.
 
 One JSON file per campaign: data/<campaign_id>/results.json
-The frontend reads from this directly.
 
 Company row schema:
   {
@@ -24,7 +23,7 @@ Company row schema:
   }
 
 Store layout:
-  data/<campaign_id>/results.json  →  { "<segment>": [<company>, ...] }
+  data/<campaign_id>/results.json  →  {"rows": [<company>, ...]}
 """
 
 from __future__ import annotations
@@ -41,6 +40,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
+_ROWS_KEY = "rows"
 
 _lock = threading.Lock()
 
@@ -53,52 +53,49 @@ class ResultStore:
 
     # ── I/O ──────────────────────────────────────────────────────────────────
 
-    def _load_raw(self) -> dict[str, list[dict]]:
+    def _load_raw(self) -> list[dict]:
         if not self._path.exists():
-            return {}
+            return []
         try:
             data = json.loads(self._path.read_text(encoding="utf-8"))
-            if not isinstance(data, dict):
-                logger.warning("results.json for %s is not a dict, resetting", self.campaign_id)
-                return {}
-            return data
+            if isinstance(data, dict):
+                rows = data.get(_ROWS_KEY, [])
+                if isinstance(rows, list):
+                    return rows
+            logger.warning("results.json for %s has unexpected format, resetting", self.campaign_id)
+            return []
         except (json.JSONDecodeError, OSError) as exc:
             logger.warning("Failed to read results for %s: %s", self.campaign_id, exc)
-            return {}
+            return []
 
-    def _save_raw(self, data: dict[str, list[dict]]) -> None:
+    def _save_raw(self, rows: list[dict]) -> None:
         self._dir.mkdir(parents=True, exist_ok=True)
         tmp = self._path.with_suffix(".json.tmp")
-        tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+        tmp.write_text(json.dumps({_ROWS_KEY: rows}, indent=2, ensure_ascii=False), encoding="utf-8")
         tmp.replace(self._path)
 
     # ── Read ──────────────────────────────────────────────────────────────────
 
-    def get_segment(self, segment: str) -> list[dict]:
-        return self._load_raw().get(segment, [])
-
-    def all_segments(self) -> dict[str, list[dict]]:
+    def get_rows(self) -> list[dict]:
         return self._load_raw()
 
     def all_company_names(self) -> set[str]:
         return {
             r["name"].strip().lower()
-            for rows in self._load_raw().values()
-            for r in rows
+            for r in self._load_raw()
             if isinstance(r.get("name"), str) and r["name"].strip()
         }
 
     def all_domains(self) -> set[str]:
         return {
             d
-            for rows in self._load_raw().values()
-            for r in rows
+            for r in self._load_raw()
             if (d := _extract_domain(r.get("website", "")))
         }
 
     # ── Write ─────────────────────────────────────────────────────────────────
 
-    def append_company(self, segment: str, company: dict) -> bool:
+    def append_company(self, company: dict) -> bool:
         """Add a company if not already present (by name + domain). Returns True if added."""
         raw_name = company.get("name", "")
         name     = str(raw_name).strip().lower() if raw_name else ""
@@ -109,24 +106,15 @@ class ResultStore:
             return False
 
         with _lock:
-            data = self._load_raw()
+            rows = self._load_raw()
 
-            # Dedup check across all segments
-            for seg_rows in data.values():
-                for r in seg_rows:
-                    if name and str(r.get("name", "")).strip().lower() == name:
-                        return False
-                    if domain:
-                        if _extract_domain(str(r.get("website", ""))) == domain:
-                            return False
+            for r in rows:
+                if name and str(r.get("name", "")).strip().lower() == name:
+                    return False
+                if domain and _extract_domain(str(r.get("website", ""))) == domain:
+                    return False
 
-            all_indices = [
-                r.get("row_index", 0)
-                for seg_rows in data.values()
-                for r in seg_rows
-                if isinstance(r.get("row_index"), int)
-            ]
-            next_idx = max((i for i in all_indices if i > 0), default=0) + 1
+            next_idx = max((r.get("row_index", 0) for r in rows if isinstance(r.get("row_index"), int)), default=0) + 1
 
             row: dict[str, Any] = {
                 "row_index":  next_idx,
@@ -142,53 +130,51 @@ class ResultStore:
                 "signals":    {},
                 "contacts":   [],
             }
-            data.setdefault(segment, []).append(row)
-            self._save_raw(data)
+            rows.append(row)
+            self._save_raw(rows)
             return True
 
-    def update_company(self, segment: str, row_index: int, fields: dict) -> bool:
+    def update_company(self, row_index: int, fields: dict) -> bool:
         """Update fields on the row with the given row_index. Returns True if found."""
         _IMMUTABLE = {"row_index", "signals", "contacts"}
         with _lock:
-            data = self._load_raw()
-            for row in data.get(segment, []):
+            rows = self._load_raw()
+            for row in rows:
                 if row.get("row_index") == row_index:
                     for k, v in fields.items():
                         if k not in _IMMUTABLE:
                             row[k] = v
-                    self._save_raw(data)
+                    self._save_raw(rows)
                     return True
         return False
 
-    def update_signal(
-        self, segment: str, row_index: int, signal_key: str, value: str, source: str
-    ) -> bool:
+    def update_signal(self, row_index: int, signal_key: str, value: str, source: str) -> bool:
         """Write Yes/No + source for one signal. Returns True if row found."""
         if value not in ("Yes", "No"):
             logger.warning("update_signal: invalid value %r for signal %s", value, signal_key)
             return False
         with _lock:
-            data = self._load_raw()
-            for row in data.get(segment, []):
+            rows = self._load_raw()
+            for row in rows:
                 if row.get("row_index") == row_index:
                     row.setdefault("signals", {})[signal_key] = {
                         "value": value, "source": source
                     }
-                    self._save_raw(data)
+                    self._save_raw(rows)
                     return True
         return False
 
-    def update_rating(self, segment: str, row_index: int, rating: str) -> bool:
-        return self.update_company(segment, row_index, {"rating": rating})
+    def update_rating(self, row_index: int, rating: str) -> bool:
+        return self.update_company(row_index, {"rating": rating})
 
-    def set_contacts(self, segment: str, row_index: int, contacts: list[str]) -> bool:
+    def set_contacts(self, row_index: int, contacts: list[str]) -> bool:
         """Replace the contacts list for a row."""
         with _lock:
-            data = self._load_raw()
-            for row in data.get(segment, []):
+            rows = self._load_raw()
+            for row in rows:
                 if row.get("row_index") == row_index:
                     row["contacts"] = [str(c) for c in contacts]
-                    self._save_raw(data)
+                    self._save_raw(rows)
                     return True
         return False
 
