@@ -21,9 +21,9 @@
       <a href="/campaigns/{{ c.id }}/run" role="button" class="btn-sm">▶ Run</a>
       <a href="/campaigns/{{ c.id }}/results" role="button" class="secondary btn-sm">Results</a>
       <a href="/campaigns/{{ c.id }}/edit" role="button" class="secondary btn-sm">Edit</a>
-      <form method="post" action="/campaigns/{{ c.id }}/delete" style="display:contents;"
+      <form method="post" action="/campaigns/{{ c.id }}/delete" style="margin:0; margin-left:auto; display:flex;"
             onsubmit="return confirm('Delete {{ c.name }}? This cannot be undone.')">
-        <button type="submit" class="btn-sm btn-danger" style="margin-left:auto;">Delete</button>
+        <button type="submit" class="btn-sm btn-danger">Delete</button>
       </form>
     </div>
   </div>

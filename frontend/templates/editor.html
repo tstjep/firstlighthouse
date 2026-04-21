@@ -44,7 +44,7 @@
       <h2>Basics</h2>
     </div>
 
-    {{ field("Campaign name", "name", campaign.name, placeholder="HRly – Swiss SMBs", required=True) }}
+    {{ field("Campaign name", "name", campaign.name, required=True) }}
 
     <div>
       <span style="display:flex; align-items:baseline; justify-content:space-between; gap:0.5rem; margin-bottom:0.35rem;">
@@ -90,7 +90,7 @@
             </div>
             <div style="flex:1; display:flex; flex-direction:column;">
               <input id="icp_size" type="text" placeholder="20–200 employees" style="border:none; background:transparent; padding:0.5rem 0.75rem 0.25rem; font-size:0.82rem; outline:none;" oninput="rebuildIcp(); updateHint(this)">
-              <span class="icp-hint">Sweet spot headcount — helps the AI skip companies that are too big or too small</span>
+              <span class="icp-hint">e.g. 20–200 (SMB), 200–1 000 (mid-market), 1 000+ (enterprise)</span>
             </div>
           </div>
           <div style="display:flex; align-items:stretch; gap:0; border-bottom:1px solid #e8edf5;">
