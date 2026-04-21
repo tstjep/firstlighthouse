@@ -94,7 +94,7 @@
             </div>
             <div style="flex:1; display:flex; flex-direction:column;">
               <input id="icp_region" type="text" placeholder="Switzerland" style="border:none; background:transparent; padding:0.5rem 0.75rem 0.25rem; font-size:0.82rem; outline:none;" oninput="rebuildIcp(); updateHint(this); applyRegionFromIcp(this.value)">
-              <span class="icp-hint">e.g. Switzerland — or DACH for Germany, Austria &amp; Switzerland</span>
+              <span class="icp-hint">e.g. Switzerland, DACH, worldwide</span>
             </div>
           </div>
           <div style="display:flex; align-items:stretch; gap:0; border-bottom:1px solid #e8edf5;">
@@ -226,7 +226,7 @@
         </div>
 
         <div class="form-row">
-          {{ field("Country name", "region.label", campaign.region.label, placeholder="Switzerland") }}
+          {{ field("Country name", "region.label", campaign.region.label, placeholder="Switzerland, DACH, worldwide") }}
           {{ field("Top-level domain", "region.tld", campaign.region.tld, placeholder="co.uk",
               help="Used for site: search queries, e.g. co.uk, com, de") }}
         </div>
