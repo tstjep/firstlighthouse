@@ -24,6 +24,7 @@ from campaign import Campaign, Region, LinkedInConfig, RatingConfig, Segment, Se
 from run_manager import MODES, start_run, load_state, tail_log, validate_run_request
 from store import ResultStore, to_waalaxy_csv, to_lemlist_csv
 from suggest_signals import suggest as suggest_signals, suggest_more as suggest_more_signals
+from suggest_roles import suggest as suggest_roles
 
 logger = logging.getLogger(__name__)
 
@@ -343,6 +344,28 @@ async def suggest_more_signals_route(request: Request, campaign_id: str):
     except Exception as exc:
         logger.error("suggest_more_signals_route error: %s", exc)
         return JSONResponse({"error": "Signal suggestion failed. Check your LLM provider config."}, status_code=500)
+
+
+@app.post("/campaigns/{campaign_id}/suggest-roles")
+async def suggest_roles_route(request: Request, campaign_id: str):
+    try:
+        body             = await request.json()
+        icp              = str(body.get("product_context", "")).strip()
+        existing_signals = body.get("existing_signals", [])
+        if not isinstance(existing_signals, list):
+            existing_signals = []
+    except Exception:
+        return JSONResponse({"error": "Invalid request body"}, status_code=400)
+
+    if not icp:
+        return JSONResponse({"error": "ICP description is required"}, status_code=422)
+
+    try:
+        roles = await suggest_roles(icp, existing_signals=existing_signals)
+        return JSONResponse({"roles": roles})
+    except Exception as exc:
+        logger.error("suggest_roles_route error: %s", exc)
+        return JSONResponse({"error": "Role suggestion failed. Check your LLM provider config."}, status_code=500)
 
 
 # ── Routes: run campaign ────────────────────────────────────────────────────────

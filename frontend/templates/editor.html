@@ -193,14 +193,47 @@
           </label>
         </div>
 
-        {{ textarea_field(
-            "Contact roles to find",
-            "segments." ~ loop.index0 ~ ".contact.roles",
-            seg.contact.roles | join(", "),
-            rows=2,
-            placeholder="Managing Partner, Head of Immigration, Partner, Director",
-            help="Comma-separated. The contact finder searches LinkedIn for these roles at each company."
-        ) }}
+        <div>
+          <span style="display:flex; align-items:baseline; justify-content:space-between; gap:0.5rem; margin-bottom:0.35rem;">
+            <span style="font-size:0.9rem; font-weight:600; color:var(--text);">Contact roles to find</span>
+            <button type="button"
+                    onclick="fetchRoleSuggestions({{ loop.index0 }})"
+                    id="suggestRolesBtn-{{ loop.index0 }}"
+                    style="font-size:0.72rem; padding:0.2rem 0.6rem; border-radius:4px; border:1px solid #b0c4de; background:var(--brand-light); color:var(--brand); cursor:pointer; font-weight:600; flex-shrink:0; white-space:nowrap;">
+              ✦ Suggest roles
+            </button>
+          </span>
+
+          <!-- buyer / user legend -->
+          <div style="display:flex; gap:1rem; font-size:0.72rem; margin-bottom:0.4rem;">
+            <span><span style="display:inline-block; width:9px; height:9px; border-radius:2px; background:#4f8ef7; margin-right:3px; vertical-align:middle;"></span><strong>Buyer</strong> — approves / signs</span>
+            <span><span style="display:inline-block; width:9px; height:9px; border-radius:2px; background:#22c27a; margin-right:3px; vertical-align:middle;"></span><strong>User</strong> — day-to-day champion</span>
+          </div>
+
+          <textarea name="segments.{{ loop.index0 }}.contact.roles"
+                    id="contactRoles-{{ loop.index0 }}"
+                    rows="2"
+                    placeholder="Managing Partner, Head of HR, Partner, Director">{{ seg.contact.roles | join(", ") }}</textarea>
+
+          <!-- role suggestion panel (hidden until suggestions arrive) -->
+          <div id="roleSuggestionPanel-{{ loop.index0 }}"
+               style="display:none; margin-top:0.5rem; border:1px solid #b0c4de; border-radius:var(--radius); background:#f7f9ff; padding:1rem 1.15rem;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.5rem;">
+              <span style="font-size:0.85rem; font-weight:700; color:var(--brand);">✦ Suggested roles</span>
+              <button type="button" onclick="dismissRolePanel({{ loop.index0 }})"
+                      style="font-size:0.75rem; color:#8896b0; background:none; border:none; cursor:pointer; padding:0;">dismiss ×</button>
+            </div>
+            <p style="font-size:0.78rem; color:#6b7a99; margin:0 0 0.75rem;">
+              Click a role to add it to the field. <strong style="color:#4f8ef7;">Blue = buyer</strong>, <strong style="color:#22c27a;">green = user</strong>.
+            </p>
+            <div id="roleSuggestionCards-{{ loop.index0 }}" style="display:flex; flex-direction:column; gap:0.5rem;"></div>
+            <div id="roleSuggestionError-{{ loop.index0 }}" style="display:none; font-size:0.82rem; color:var(--danger); margin-top:0.5rem;"></div>
+          </div>
+
+          <small class="help" style="display:block; margin-top:0.3rem;">
+            Comma-separated. The contact finder searches LinkedIn for these roles at each company.
+          </small>
+        </div>
 
         <details>
           <summary>Search queries (advanced)</summary>
@@ -725,6 +758,113 @@ function applyRegion(btn) {
   btn.style.borderColor  = 'var(--accent)';
   btn.style.color        = 'var(--accent)';
   btn.style.fontWeight   = '700';
+}
+
+// ── Role suggestions ──────────────────────────────────────────────────────────
+
+async function fetchRoleSuggestions(segIdx) {
+  const icp = document.getElementById('productContext').value.trim();
+  if (!icp) {
+    activateIcpTextarea();
+    alert('Fill in your ICP description first.');
+    return;
+  }
+
+  const btn = document.getElementById(`suggestRolesBtn-${segIdx}`);
+  btn.textContent = 'Generating…';
+  btn.disabled = true;
+
+  const panel = document.getElementById(`roleSuggestionPanel-${segIdx}`);
+  panel.style.display = 'block';
+  document.getElementById(`roleSuggestionError-${segIdx}`).style.display = 'none';
+  document.getElementById(`roleSuggestionCards-${segIdx}`).innerHTML =
+    '<div style="color:#8896b0; font-size:0.82rem; padding:0.4rem 0;">Generating suggestions…</div>';
+
+  try {
+    const res = await fetch(`/campaigns/${campaignId}/suggest-roles`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        product_context:  icp,
+        existing_signals: collectExistingSignals(),
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      showRoleSuggestionError(segIdx, data.error || 'Request failed');
+      return;
+    }
+    renderRoleSuggestions(segIdx, data.roles || []);
+  } catch (err) {
+    showRoleSuggestionError(segIdx, 'Network error — is the server running?');
+  } finally {
+    btn.textContent = '✦ Suggest roles';
+    btn.disabled = false;
+  }
+}
+
+function renderRoleSuggestions(segIdx, roles) {
+  const container = document.getElementById(`roleSuggestionCards-${segIdx}`);
+  container.innerHTML = '';
+  if (!roles.length) {
+    container.innerHTML = '<div style="color:#8896b0; font-size:0.82rem;">No suggestions returned — try adding more detail to your ICP.</div>';
+    return;
+  }
+
+  roles.forEach(role => {
+    const isBuyer  = role.role_type === 'buyer';
+    const color    = isBuyer ? '#4f8ef7' : '#22c27a';
+    const label    = isBuyer ? 'Buyer' : 'User';
+
+    const card = document.createElement('div');
+    card.style.cssText = `display:flex; align-items:center; gap:0.75rem; padding:0.6rem 0.85rem; border:1px solid #dde4f0; border-left:4px solid ${color}; border-radius:6px; background:#fff;`;
+
+    card.innerHTML = `
+      <div style="flex:1; min-width:0;">
+        <span style="font-weight:600; font-size:0.88rem;">${escHtml(role.role)}</span>
+        <span style="display:inline-block; font-size:0.68rem; font-weight:700; color:#fff; background:${color}; border-radius:3px; padding:0 5px; margin-left:6px; vertical-align:middle;">${label}</span>
+        ${role.rationale ? `<div style="font-size:0.78rem; color:#6b7a99; margin-top:0.2rem;">${escHtml(role.rationale)}</div>` : ''}
+      </div>
+      <button type="button"
+              onclick="addRoleToField(${segIdx}, '${escAttr(role.role)}', this)"
+              style="font-size:0.75rem; padding:0.25rem 0.65rem; border-radius:4px; border:1px solid ${color}; color:${color}; background:transparent; cursor:pointer; white-space:nowrap; flex-shrink:0;">
+        + Add
+      </button>
+    `;
+    container.appendChild(card);
+  });
+}
+
+function addRoleToField(segIdx, roleName, btn) {
+  const ta = document.getElementById(`contactRoles-${segIdx}`);
+  const current = ta.value.trim();
+  const parts   = current ? current.split(',').map(r => r.trim()).filter(Boolean) : [];
+  if (!parts.map(r => r.toLowerCase()).includes(roleName.toLowerCase())) {
+    parts.push(roleName);
+    ta.value = parts.join(', ');
+  }
+  btn.textContent = '✓ Added';
+  btn.disabled    = true;
+  btn.style.color = '#22c27a';
+  btn.style.borderColor = '#22c27a';
+}
+
+function showRoleSuggestionError(segIdx, msg) {
+  document.getElementById(`roleSuggestionCards-${segIdx}`).innerHTML = '';
+  const el = document.getElementById(`roleSuggestionError-${segIdx}`);
+  el.textContent = '⚠ ' + msg;
+  el.style.display = 'block';
+}
+
+function dismissRolePanel(segIdx) {
+  document.getElementById(`roleSuggestionPanel-${segIdx}`).style.display = 'none';
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escAttr(str) {
+  return str.replace(/'/g, "\\'");
 }
 
 function fillHint(btn) {
