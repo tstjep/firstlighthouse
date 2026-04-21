@@ -1008,10 +1008,12 @@ function fillExampleValues() {
 }
 
 function initIcpBuilder() {
-  // Pre-fill region field from saved region label (edit mode)
+  // Pre-fill region field from saved region label only in edit mode
+  // (detect edit mode by checking if a campaign name is already saved)
+  const isEditMode = !!{{ 'true' if campaign.product_context else 'false' }};
   const regionInput = document.getElementById('icp_region');
   const savedRegion = document.querySelector('[name="region.label"]');
-  if (regionInput && savedRegion && savedRegion.value && !regionInput.value) {
+  if (isEditMode && regionInput && savedRegion && savedRegion.value && !regionInput.value) {
     regionInput.value = savedRegion.value;
     updateHint(regionInput);
   }
