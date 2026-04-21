@@ -117,8 +117,8 @@
               <span style="font-size:0.62rem; color:#a0aec8; font-style:italic;">what triggers urgency</span>
             </div>
             <div style="flex:1; display:flex; flex-direction:column;">
-              <input id="icp_signal" type="text" placeholder="actively hiring an HR manager or scaling headcount" style="border:none; background:transparent; padding:0.5rem 0.75rem 0.25rem; font-size:0.82rem; outline:none;" oninput="rebuildIcp(); updateHint(this)">
-              <span class="icp-hint">e.g. actively hiring an HR manager or scaling headcount</span>
+              <input id="icp_signal" type="text" placeholder="actively hiring an HR manager, scaling headcount" style="border:none; background:transparent; padding:0.5rem 0.75rem 0.25rem; font-size:0.82rem; outline:none;" oninput="rebuildIcp(); updateHint(this)">
+              <span class="icp-hint">e.g. actively hiring an HR manager, scaling headcount</span>
             </div>
           </div>
           <div style="display:flex; align-items:stretch; gap:0; border-bottom:1px solid #e8edf5;">
@@ -127,8 +127,8 @@
               <span style="font-size:0.62rem; color:#a0aec8; font-style:italic;">who approves the budget</span>
             </div>
             <div style="flex:1; display:flex; flex-direction:column;">
-              <input id="icp_role" type="text" placeholder="CEO or head of HR" style="border:none; background:transparent; padding:0.5rem 0.75rem 0.25rem; font-size:0.82rem; outline:none;" oninput="rebuildIcp(); updateHint(this)">
-              <span class="icp-hint">e.g. CEO or head of HR</span>
+              <input id="icp_role" type="text" placeholder="CEO, head of HR" style="border:none; background:transparent; padding:0.5rem 0.75rem 0.25rem; font-size:0.82rem; outline:none;" oninput="rebuildIcp(); updateHint(this)">
+              <span class="icp-hint">e.g. CEO, head of HR</span>
             </div>
           </div>
           <div style="display:flex; align-items:stretch; gap:0;">
@@ -137,8 +137,8 @@
               <span style="font-size:0.62rem; color:#a0aec8; font-style:italic;">who champions it internally</span>
             </div>
             <div style="flex:1; display:flex; flex-direction:column;">
-              <input id="icp_user" type="text" placeholder="HR manager or office manager" style="border:none; background:transparent; padding:0.5rem 0.75rem 0.25rem; font-size:0.82rem; outline:none;" oninput="rebuildIcp(); updateHint(this)">
-              <span class="icp-hint">e.g. HR manager or office manager</span>
+              <input id="icp_user" type="text" placeholder="HR manager, office manager" style="border:none; background:transparent; padding:0.5rem 0.75rem 0.25rem; font-size:0.82rem; outline:none;" oninput="rebuildIcp(); updateHint(this)">
+              <span class="icp-hint">e.g. HR manager, office manager</span>
             </div>
           </div>
         </div>
@@ -151,8 +151,8 @@
               <span style="font-size:0.62rem; color:#a0aec8; font-style:italic;">what they use today</span>
             </div>
             <div style="flex:1; display:flex; flex-direction:column;">
-              <input id="icp_options" type="text" placeholder="spreadsheets, BambooHR, or nothing formal" style="border:none; background:transparent; padding:0.5rem 0.75rem 0.25rem; font-size:0.82rem; outline:none;" oninput="rebuildIcp(); updateHint(this)">
-              <span class="icp-hint">e.g. spreadsheets, BambooHR, or nothing formal</span>
+              <input id="icp_options" type="text" placeholder="spreadsheets, BambooHR, nothing formal" style="border:none; background:transparent; padding:0.5rem 0.75rem 0.25rem; font-size:0.82rem; outline:none;" oninput="rebuildIcp(); updateHint(this)">
+              <span class="icp-hint">e.g. spreadsheets, BambooHR, nothing formal</span>
             </div>
           </div>
           <div style="display:flex; align-items:stretch; gap:0;">
@@ -161,29 +161,19 @@
               <span style="font-size:0.62rem; color:#a0aec8; font-style:italic;">who wastes your time</span>
             </div>
             <div style="flex:1; display:flex; flex-direction:column;">
-              <input id="icp_skip" type="text" placeholder="fewer than 10 staff, enterprise on SAP/Workday, or government" style="border:none; background:transparent; padding:0.5rem 0.75rem 0.25rem; font-size:0.82rem; outline:none;" oninput="rebuildIcp(); updateHint(this)">
-              <span class="icp-hint">e.g. fewer than 10 staff, enterprise on SAP/Workday, or government</span>
+              <input id="icp_skip" type="text" placeholder="fewer than 10 staff, enterprise on SAP/Workday, government" style="border:none; background:transparent; padding:0.5rem 0.75rem 0.25rem; font-size:0.82rem; outline:none;" oninput="rebuildIcp(); updateHint(this)">
+              <span class="icp-hint">e.g. fewer than 10 staff, enterprise on SAP/Workday, government</span>
             </div>
           </div>
         </div>
 
         <div style="padding:0.5rem 0.75rem; border-top:1px solid #e8edf5; display:flex; align-items:center; justify-content:space-between; gap:0.5rem;">
           <span style="font-size:0.72rem; color:#9aa5bc;">Start with what you know. Green and orange fields will sharpen as you run interviews and close your first deals.</span>
-          <div style="display:flex; gap:0.5rem; flex-shrink:0;">
-            <button type="button" onclick="fillExampleValues()" class="btn-ghost btn-sm">Fill with example</button>
-            <button type="button" onclick="switchToFreeText()" class="btn-ghost btn-sm">free text →</button>
-          </div>
+          <button type="button" onclick="fillExampleValues()" class="btn-ghost btn-sm">Fill with example</button>
         </div>
       </div>
 
-      <div id="freeTextActions" style="display:none; margin-bottom:0.3rem;">
-        <button type="button" onclick="switchToBuilder()" class="btn-ghost btn-sm">← back to form</button>
-      </div>
-
-      <textarea name="product_context" id="productContext" rows="5"
-                placeholder="e.g. We sell HRly to Swiss SMBs in professional services, 20–200 staff. A buying signal is hiring an HR manager. Skip companies with fewer than 10 staff or on SAP/Workday."
-                oninput="updateSuggestBtn()"
-                >{{ campaign.product_context }}</textarea>
+      <textarea name="product_context" id="productContext" style="display:none;" rows="5">{{ campaign.product_context }}</textarea>
 
     </div>
 
@@ -946,10 +936,15 @@ function rebuildIcp() {
   const ta = document.getElementById('productContext');
   if (ta) ta.value = parts.join('');
 
-  // Show "Suggest signals" only once there's ICP content
-  const hasContent = parts.length > 0 || (ta && ta.value.trim().length > 0);
+  // Only write to textarea if builder has real content (don't wipe existing prose with empty)
+  if (parts.length > 0) {
+    if (ta) ta.value = parts.join('');
+  }
+
+  // Show "Suggest signals" only once the product field has content
+  const productFilled = !!(document.getElementById('icp_product')?.value.trim());
   const btn = document.getElementById('suggestBtn');
-  if (btn) btn.style.display = hasContent ? '' : 'none';
+  if (btn) btn.style.display = productFilled ? '' : 'none';
 }
 
 // Hide the hint text beneath a field once the user has typed something
@@ -965,11 +960,11 @@ const ICP_EXAMPLES = {
   icp_target:  'SMBs in professional services, 20–200 staff',
   icp_region:  'Switzerland',
   icp_pain:    'manual HR admin and staying compliant with Swiss labour law',
-  icp_signal:  'actively hiring an HR manager or scaling headcount',
-  icp_role:    'CEO or head of HR',
-  icp_user:    'HR manager or office manager',
-  icp_options: 'spreadsheets, BambooHR, or nothing formal',
-  icp_skip:    'fewer than 10 staff, enterprise on SAP/Workday, or government',
+  icp_signal:  'actively hiring an HR manager, scaling headcount',
+  icp_role:    'CEO, head of HR',
+  icp_user:    'HR manager, office manager',
+  icp_options: 'spreadsheets, BambooHR, nothing formal',
+  icp_skip:    'fewer than 10 staff, enterprise on SAP/Workday, government',
 };
 
 // Map common region names to preset config; auto-populate region fields
@@ -1012,65 +1007,23 @@ function fillExampleValues() {
   rebuildIcp();
 }
 
-function switchToFreeText() {
-  const builder = document.getElementById('icpBuilder');
-  const ta = document.getElementById('productContext');
-  const actions = document.getElementById('freeTextActions');
-  if (builder) builder.style.display = 'none';
-  if (actions) actions.style.display = '';
-  if (ta) { ta.style.display = ''; ta.focus(); }
-}
-
-function switchToBuilder() {
-  const builder = document.getElementById('icpBuilder');
-  const ta = document.getElementById('productContext');
-  const actions = document.getElementById('freeTextActions');
-  if (ta) ta.style.display = 'none';
-  if (actions) actions.style.display = 'none';
-  if (builder) builder.style.display = '';
-  rebuildIcp();
-}
-
 function initIcpBuilder() {
-  const ta = document.getElementById('productContext');
-  const builder = document.getElementById('icpBuilder');
-  if (!ta || !builder) return;
-
-  // If there's existing prose content, hide the builder and show the textarea
-  if (ta.value.trim()) {
-    builder.style.display = 'none';
-    ta.style.display = '';
-    const actions = document.getElementById('freeTextActions');
-    if (actions) actions.style.display = '';
-    return;
-  }
-
-  // Pre-fill region field from saved region label
+  // Pre-fill region field from saved region label (edit mode)
   const regionInput = document.getElementById('icp_region');
   const savedRegion = document.querySelector('[name="region.label"]');
   if (regionInput && savedRegion && savedRegion.value && !regionInput.value) {
     regionInput.value = savedRegion.value;
+    updateHint(regionInput);
   }
-
-  // Start with builder visible, textarea hidden
-  ta.style.display = 'none';
-  builder.style.display = '';
-  rebuildIcp();
-}
-
-function updateSuggestBtn() {
-  const ta = document.getElementById('productContext');
-  const btn = document.getElementById('suggestBtn');
-  if (!btn || !ta) return;
-  btn.style.display = ta.value.trim() ? '' : 'none';
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  initIcpBuilder();
-  updateSuggestBtn();
-  // Hide hints for any pre-filled fields (edit mode)
+  // Hide hints for any other pre-filled fields (edit mode)
   document.querySelectorAll('#icpBuilder input[id^="icp_"]').forEach(updateHint);
-});
+  // Sync suggest button state
+  const productFilled = !!(document.getElementById('icp_product')?.value.trim());
+  const btn = document.getElementById('suggestBtn');
+  if (btn) btn.style.display = productFilled ? '' : 'none';
+}
+
+document.addEventListener('DOMContentLoaded', initIcpBuilder);
 
 function fillHint(btn) {
   const label = btn.closest('label');
