@@ -1,5 +1,5 @@
 """
-Background run manager for salesintel agents.
+Background run manager for firstlighthouse agents.
 
 Launches agent subprocesses, writes output to a per-run log file,
 and tracks run state in data/<campaign_id>/run_state.json.

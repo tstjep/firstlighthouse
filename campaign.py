@@ -1,4 +1,4 @@
-"""Campaign configuration schema for salesintel.
+"""Campaign configuration schema for firstlighthouse.
 
 A Campaign captures everything domain-specific:
   - what companies to look for (segments + search queries)

@@ -1,5 +1,5 @@
 """
-LLM-powered signal suggestions for salesintel.
+LLM-powered signal suggestions for firstlighthouse.
 
 Given an ICP description, runs two parallel LLM calls:
   1. Suggest 1-3 positive buying signals

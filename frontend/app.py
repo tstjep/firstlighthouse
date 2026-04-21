@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-salesintel campaign editor — FastAPI + Jinja2
+firstlighthouse campaign editor — FastAPI + Jinja2
 Stateless server-side rendering, no websockets, runs on AWS App Runner.
 
 Start:
@@ -28,7 +28,7 @@ from suggest_roles import suggest as suggest_roles
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="salesintel")
+app = FastAPI(title="firstlighthouse")
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 
 

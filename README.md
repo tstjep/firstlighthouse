@@ -1,4 +1,4 @@
-# salesintel
+# Firstlighthouse
 
 Automatically builds ranked lists of target companies in any market — so you know exactly who to reach out to first.
 
@@ -10,7 +10,7 @@ The 0→1 stage is the hardest part of building a company — and most founders 
 
 Most founders respond by either doing nothing (waiting for word of mouth) or doing too much (manually researching hundreds of companies in spreadsheets). Both approaches stall.
 
-salesintel is built specifically for this stage. It guides you through the process of defining your ICP, identifying what a good fit looks like in practice, and turning that into a structured, prioritised list of real companies and contacts — without requiring sales experience or expensive data subscriptions. The tool is deliberately limited in scope: it doesn't try to run your outreach, manage your pipeline, or predict churn. It does one thing — helps you figure out *who* to talk to and *why* — and gets out of the way.
+firstlighthouse is built specifically for this stage. It guides you through the process of defining your ICP, identifying what a good fit looks like in practice, and turning that into a structured, prioritised list of real companies and contacts — without requiring sales experience or expensive data subscriptions. The tool is deliberately limited in scope: it doesn't try to run your outreach, manage your pipeline, or predict churn. It does one thing — helps you figure out *who* to talk to and *why* — and gets out of the way.
 
 Built on **AI agents** ([nanobot](https://github.com/nanobot-ai/nanobot)): each step is an autonomous agent that runs searches, reasons over results, and decides what to write — so it handles ambiguous company data, missing websites, and partial information the way a human researcher would, not with brittle rules.
 
@@ -77,7 +77,7 @@ Get these from browser DevTools → Application → Cookies while logged into li
 
 ## Campaigns
 
-Each campaign defines a market: who you're targeting, where they are, what signals matter, and what contacts to find. Configure everything in the **web UI** — salesintel persists it as a JSON file in `campaigns/` that the agents read at runtime.
+Each campaign defines a market: who you're targeting, where they are, what signals matter, and what contacts to find. Configure everything in the **web UI** — firstlighthouse persists it as a JSON file in `campaigns/` that the agents read at runtime.
 
 **Campaign fields:**
 - **ICP** — plain-English description of your product and ideal customer, injected into all LLM prompts
@@ -195,7 +195,7 @@ PYTEST_RUN_INTEGRATION=1 PYTHONPATH="" ./venv/bin/python -m pytest tests/ -v -m 
 ## Project structure
 
 ```
-salesintel/
+firstlighthouse/
 ├── campaigns/
 │   ├── immigration-uk.json      # UK immigration law firms (original)
 │   ├── hr-saas-ch.json          # HR SaaS → Swiss SMBs (reference scenario)

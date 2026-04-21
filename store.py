@@ -1,5 +1,5 @@
 """
-Local JSON data store for salesintel.
+Local JSON data store for firstlighthouse.
 
 One JSON file per campaign: data/<campaign_id>/results.json
 The frontend reads from this directly.

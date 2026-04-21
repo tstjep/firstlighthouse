@@ -1,5 +1,5 @@
 """
-LLM-powered contact role suggestions for salesintel.
+LLM-powered contact role suggestions for firstlighthouse.
 
 Given an ICP description and the campaign's buying signals, runs two parallel LLM calls:
   1. Suggest buyer roles (economic decision-makers who sign / approve the purchase)
