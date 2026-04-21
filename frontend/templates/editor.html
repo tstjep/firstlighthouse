@@ -3,7 +3,9 @@
 {% block page_title %}{{ campaign.name or 'New campaign' }}{% endblock %}
 {% block page_subtitle %}<p class="subtitle"><a href="/" style="color: inherit; text-decoration: none;">← Campaigns</a></p>{% endblock %}
 {% block page_actions %}
+  {% if campaign.product_context %}
   <a href="/campaigns/{{ campaign.id }}/results" role="button" class="secondary btn-sm">View results</a>
+  {% endif %}
   <button form="campaign-form" type="submit" name="action" value="save" class="btn-sm">Save campaign</button>
 {% endblock %}
 
