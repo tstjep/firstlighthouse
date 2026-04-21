@@ -4,9 +4,9 @@
 {% block page_subtitle %}<p class="subtitle"><a href="/" style="color:inherit;text-decoration:none;">← Campaigns</a> &nbsp;·&nbsp; <a href="/campaigns/{{ campaign.id }}/edit" style="color:inherit;text-decoration:none;">Edit campaign</a></p>{% endblock %}
 {% block page_actions %}
   <a href="/campaigns/{{ campaign.id }}/results/export/waalaxy"
-     role="button" class="secondary outline btn-sm">⬇ Waalaxy CSV</a>
+     role="button" class="secondary btn-sm">⬇ Waalaxy CSV</a>
   <a href="/campaigns/{{ campaign.id }}/results/export/lemlist"
-     role="button" class="secondary outline btn-sm">⬇ Lemlist CSV</a>
+     role="button" class="secondary btn-sm">⬇ Lemlist CSV</a>
 {% endblock %}
 {% block content_class %}wide{% endblock %}
 

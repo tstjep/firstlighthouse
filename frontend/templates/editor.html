@@ -3,8 +3,8 @@
 {% block page_title %}{{ campaign.name or 'New campaign' }}{% endblock %}
 {% block page_subtitle %}<p class="subtitle"><a href="/" style="color: inherit; text-decoration: none;">← Campaigns</a></p>{% endblock %}
 {% block page_actions %}
-  <a href="/campaigns/{{ campaign.id }}/results" role="button" class="secondary outline btn-sm">View results</a>
-  <button form="campaign-form" type="submit" name="action" value="save">Save campaign</button>
+  <a href="/campaigns/{{ campaign.id }}/results" role="button" class="secondary btn-sm">View results</a>
+  <button form="campaign-form" type="submit" name="action" value="save" class="btn-sm">Save campaign</button>
 {% endblock %}
 
 {% macro field(label, name, value='', type='text', placeholder='', help='', required=False) %}
@@ -83,8 +83,8 @@
               <span style="font-size:0.62rem; color:#a0aec8; font-style:italic;">your target market</span>
             </div>
             <div style="flex:1; display:flex; flex-direction:column;">
-              <input id="icp_target" type="text" placeholder="Swiss SMBs in professional services, 20–200 staff" style="border:none; background:transparent; padding:0.5rem 0.75rem 0.25rem; font-size:0.82rem; outline:none;" oninput="rebuildIcp(); updateHint(this)">
-              <span class="icp-hint">e.g. Swiss SMBs in professional services, 20–200 staff</span>
+              <input id="icp_target" type="text" placeholder="SMBs in professional services, 20–200 staff" style="border:none; background:transparent; padding:0.5rem 0.75rem 0.25rem; font-size:0.82rem; outline:none;" oninput="rebuildIcp(); updateHint(this)">
+              <span class="icp-hint">e.g. SMBs in professional services, 20–200 staff</span>
             </div>
           </div>
           <div style="display:flex; align-items:stretch; gap:0; border-bottom:1px solid #e8edf5;">
@@ -93,8 +93,8 @@
               <span style="font-size:0.62rem; color:#a0aec8; font-style:italic;">where you sell</span>
             </div>
             <div style="flex:1; display:flex; flex-direction:column;">
-              <input id="icp_region" type="text" placeholder="Switzerland" style="border:none; background:transparent; padding:0.5rem 0.75rem 0.25rem; font-size:0.82rem; outline:none;" oninput="rebuildIcp(); updateHint(this); applyRegionFromIcp(this.value)">
-              <span class="icp-hint">e.g. Switzerland</span>
+              <input id="icp_region" type="text" placeholder="Switzerland / CH" style="border:none; background:transparent; padding:0.5rem 0.75rem 0.25rem; font-size:0.82rem; outline:none;" oninput="rebuildIcp(); updateHint(this); applyRegionFromIcp(this.value)">
+              <span class="icp-hint">e.g. Switzerland / CH</span>
             </div>
           </div>
           <div style="display:flex; align-items:stretch; gap:0; border-bottom:1px solid #e8edf5;">
@@ -181,7 +181,7 @@
       </div>
 
       <textarea name="product_context" id="productContext" rows="5"
-                placeholder="e.g. We sell LawFairy to UK immigration law firms with 5–100 staff. A buying signal is hiring a new immigration solicitor. Skip firms with fewer than 3 staff."
+                placeholder="e.g. We sell HRly to Swiss SMBs in professional services, 20–200 staff. A buying signal is hiring an HR manager. Skip companies with fewer than 10 staff or on SAP/Workday."
                 oninput="updateSuggestBtn()"
                 >{{ campaign.product_context }}</textarea>
 
@@ -499,7 +499,7 @@
   <!-- ── STICKY FOOTER ─────────────────────────────────────────────────── -->
   <div class="sticky-footer">
     <button type="submit" name="action" value="save">Save campaign</button>
-    <a href="/" role="button" class="secondary outline">Cancel</a>
+    <a href="/" role="button" class="secondary">Cancel</a>
     <span style="margin-left: auto; font-size: 0.8rem; color: #8896b0;">
       ID: <code>{{ campaign.id }}</code>
     </span>
@@ -962,8 +962,8 @@ function updateHint(input) {
 // Fill all ICP builder fields with the HRly example values
 const ICP_EXAMPLES = {
   icp_product: 'HRly, a cloud HR platform',
-  icp_target:  'Swiss SMBs in professional services, 20–200 staff',
-  icp_region:  'Switzerland',
+  icp_target:  'SMBs in professional services, 20–200 staff',
+  icp_region:  'Switzerland / CH',
   icp_pain:    'manual HR admin and staying compliant with Swiss labour law',
   icp_signal:  'actively hiring an HR manager or scaling headcount',
   icp_role:    'CEO or head of HR',
@@ -977,7 +977,7 @@ const REGION_PRESETS = [
   { match: ['united kingdom', 'uk', 'england', 'britain'], label: 'United Kingdom', tld: 'co.uk', gl: 'gb', cr: 'countryGB' },
   { match: ['germany', 'deutschland'],                      label: 'Germany',        tld: 'de',    gl: 'de', cr: 'countryDE' },
   { match: ['austria', 'österreich'],                       label: 'Austria',        tld: 'at',    gl: 'at', cr: 'countryAT' },
-  { match: ['switzerland', 'schweiz', 'suisse'],            label: 'Switzerland',    tld: 'ch',    gl: 'ch', cr: 'countryCH' },
+  { match: ['switzerland', 'schweiz', 'suisse', 'ch'],      label: 'Switzerland',    tld: 'ch',    gl: 'ch', cr: 'countryCH' },
   { match: ['united states', 'usa', 'us'],                  label: 'United States',  tld: 'com',   gl: 'us', cr: 'countryUS' },
 ];
 

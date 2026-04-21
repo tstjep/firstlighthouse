@@ -11,8 +11,6 @@
   <div class="campaign-card">
     <h3>{{ c.name }}</h3>
     <p class="meta">
-      {{ c.segments | length }} segment{{ 's' if c.segments | length != 1 else '' }}
-      &nbsp;·&nbsp;
       {{ c.signals | length }} signal{{ 's' if c.signals | length != 1 else '' }}
       {% if c.region.label %}&nbsp;·&nbsp; {{ c.region.label }}{% endif %}
     </p>
@@ -20,12 +18,12 @@
     <p class="excerpt">{{ c.product_context }}</p>
     {% endif %}
     <div class="actions">
-      <a href="/campaigns/{{ c.id }}/run" role="button">▶ Run</a>
-      <a href="/campaigns/{{ c.id }}/results" role="button" class="secondary outline">Results</a>
-      <a href="/campaigns/{{ c.id }}/edit" role="button" class="secondary outline">Edit</a>
+      <a href="/campaigns/{{ c.id }}/run" role="button" class="btn-sm">▶ Run</a>
+      <a href="/campaigns/{{ c.id }}/results" role="button" class="secondary btn-sm">Results</a>
+      <a href="/campaigns/{{ c.id }}/edit" role="button" class="secondary btn-sm">Edit</a>
       <form method="post" action="/campaigns/{{ c.id }}/delete" style="margin: 0; margin-left: auto;"
             onsubmit="return confirm('Delete {{ c.name }}? This cannot be undone.')">
-        <button type="submit" class="btn-sm btn-danger secondary outline">Delete</button>
+        <button type="submit" class="btn-sm btn-danger">Delete</button>
       </form>
     </div>
   </div>
