@@ -106,6 +106,9 @@ class _DebugProvider(LLMProvider):
         super().__init__(default_model=default_model)
         self._inner = inner
 
+    def get_default_model(self) -> str:
+        return self._inner.get_default_model()
+
     async def chat(
         self,
         messages: list[dict[str, Any]],
