@@ -246,7 +246,7 @@
                 class="btn-ai btn-sm" style="display:none;">
           ✦ Suggest more
         </button>
-        <button type="submit" name="action" value="add_signal" class="btn-sm secondary">+ Add signal</button>
+        <button type="submit" name="action" value="add_signal" id="addSignalBtn" class="btn-sm secondary" style="display:none;">+ Add signal</button>
       </div>
     </div>
 
@@ -1031,16 +1031,18 @@ function updateStageUI() {
   const hasSigs    = signalCount() > 0;
   const hasRolesNow = hasRoles();
 
-  const suggestBtn     = document.getElementById('suggestBtn');
-  const suggestMoreBtn = document.getElementById('suggestMoreBtn');
+  const suggestBtn      = document.getElementById('suggestBtn');
+  const suggestMoreBtn  = document.getElementById('suggestMoreBtn');
   const suggestRolesBtn = document.getElementById('suggestRolesBtn');
-  const stageHint      = document.getElementById('signalsStageHint');
+  const addSignalBtn    = document.getElementById('addSignalBtn');
+  const stageHint       = document.getElementById('signalsStageHint');
 
   // Stage 0 — no ICP
   if (!icpFilled) {
     if (suggestBtn)      suggestBtn.style.display      = 'none';
     if (suggestMoreBtn)  suggestMoreBtn.style.display  = 'none';
     if (suggestRolesBtn) suggestRolesBtn.style.display = 'none';
+    if (addSignalBtn)    addSignalBtn.style.display    = 'none';
     if (stageHint) {
       stageHint.style.display = 'block';
       stageHint.innerHTML = '💡 Fill in your ICP above to unlock signal suggestions.';
@@ -1053,6 +1055,7 @@ function updateStageUI() {
     if (suggestBtn)      { suggestBtn.style.display = ''; suggestBtn.textContent = '✦ Suggest signals'; }
     if (suggestMoreBtn)  suggestMoreBtn.style.display  = 'none';
     if (suggestRolesBtn) suggestRolesBtn.style.display = 'none';
+    if (addSignalBtn)    addSignalBtn.style.display    = '';
     if (stageHint) {
       stageHint.style.display = 'block';
       stageHint.innerHTML = '✦ Your ICP is ready — click <strong>Suggest signals</strong> to get started, or add one manually.';
@@ -1062,8 +1065,9 @@ function updateStageUI() {
 
   // Stage 2+ — ICP + signals exist
   if (suggestBtn)      { suggestBtn.style.display = ''; suggestBtn.textContent = '✦ Suggest signals'; }
-  if (suggestMoreBtn)  { suggestMoreBtn.style.display = ''; }
-  if (suggestRolesBtn) { suggestRolesBtn.style.display = ''; }
+  if (suggestMoreBtn)  suggestMoreBtn.style.display  = '';
+  if (suggestRolesBtn) suggestRolesBtn.style.display = '';
+  if (addSignalBtn)    addSignalBtn.style.display    = '';
   if (stageHint)       stageHint.style.display = 'none';
 }
 
