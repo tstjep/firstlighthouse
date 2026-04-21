@@ -216,7 +216,7 @@ async def campaigns_list(request: Request, saved: str = ""):
 
 @app.get("/campaigns/new", response_class=HTMLResponse)
 async def new_campaign_get(request: Request):
-    draft = Campaign(id="my-campaign", name="", signals=list(_DEFAULT_SIGNALS))
+    draft = Campaign(id="my-campaign", name="")
     return _render_editor(request, draft)
 
 
