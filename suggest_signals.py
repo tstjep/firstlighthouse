@@ -254,7 +254,7 @@ async def _call(provider, model: str, prompt: str) -> str:
                 {"role": "user",   "content": prompt},
             ],
             model=model,
-            max_tokens=1024,
+            max_tokens=4096,
             temperature=0.7,
         )
         return response.content or ""
