@@ -99,28 +99,76 @@ class _VertexProvider(OpenAICompatProvider):
         return response
 
 
+class _DebugProvider(LLMProvider):
+    """Wraps any provider and dumps every prompt to stdout when DEBUG_PROMPTS=1."""
+
+    def __init__(self, inner: LLMProvider, default_model: str):
+        super().__init__(default_model=default_model)
+        self._inner = inner
+
+    async def chat(
+        self,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]] | None = None,
+        model: str | None = None,
+        max_tokens: int = 4096,
+        temperature: float = 0.7,
+        **kwargs,
+    ) -> LLMResponse:
+        sep = "─" * 60
+        print(f"\n{sep}")
+        print(f"[prompt] model={model or self.default_model}  max_tokens={max_tokens}  temp={temperature}")
+        for i, msg in enumerate(messages):
+            role = msg.get("role", "?")
+            content = msg.get("content", "")
+            if isinstance(content, list):
+                # tool results / multi-part content
+                content = " ".join(
+                    p.get("text", str(p)) if isinstance(p, dict) else str(p)
+                    for p in content
+                )
+            preview = content[:2000] + ("…" if len(content) > 2000 else "")
+            print(f"[{i}] {role.upper()}:\n{preview}")
+        print(sep)
+        response = await self._inner.chat(
+            messages=messages,
+            tools=tools,
+            model=model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            **kwargs,
+        )
+        print(f"[response] finish={response.finish_reason}  content preview: {str(response.content)[:300]}")
+        print(sep + "\n")
+        return response
+
+
 def build_provider() -> tuple[LLMProvider, str]:
     """Return (provider, model_name) ready to pass to AgentLoop."""
     model = os.environ.get("LLM_MODEL", cfg.DEFAULT_MODEL)
+    _debug = os.environ.get("DEBUG_PROMPTS", "").strip() == "1"
 
     # 1. Vertex AI via service account JSON
     if cfg.VERTEX_PROJECT:
         credentials_file = str(PROJECT_ROOT / cfg.CREDENTIALS_FILE)
         vertex_model = _VERTEX_MODEL_MAP.get(model, model)
-        return _VertexProvider(
+        provider = _VertexProvider(
             credentials_file=credentials_file,
             project=cfg.VERTEX_PROJECT,
             location=cfg.VERTEX_LOCATION,
             default_model=model,
-        ), vertex_model
+        )
+        return (_DebugProvider(provider, vertex_model), vertex_model) if _debug else (provider, vertex_model)
 
     # 2. Direct Anthropic
     if key := os.environ.get("ANTHROPIC_API_KEY"):
-        return AnthropicProvider(api_key=key, default_model=model), model
+        provider = AnthropicProvider(api_key=key, default_model=model)
+        return (_DebugProvider(provider, model), model) if _debug else (provider, model)
 
     # 3. Generic OpenAI-compat fallback
     if key := os.environ.get("LLM_API_KEY"):
-        return OpenAICompatProvider(api_key=key, default_model=model), model
+        provider = OpenAICompatProvider(api_key=key, default_model=model)
+        return (_DebugProvider(provider, model), model) if _debug else (provider, model)
 
     print(
         "Error: no LLM provider configured. Set VERTEX_PROJECT in config.py, "
