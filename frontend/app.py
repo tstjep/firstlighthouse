@@ -9,11 +9,21 @@ Start:
 
 import json
 import logging
+import os
 import sys
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
+
+# Load .env from project root into environment (won't override existing vars)
+_env_file = PROJECT_ROOT / ".env"
+if _env_file.exists():
+    for _line in _env_file.read_text().splitlines():
+        _line = _line.strip()
+        if _line and not _line.startswith("#") and "=" in _line:
+            _k, _, _v = _line.partition("=")
+            os.environ.setdefault(_k.strip(), _v.strip())
 
 from fastapi import FastAPI, Request
 from fastapi.datastructures import FormData
