@@ -560,33 +560,22 @@
     .icp-hint.hidden { display: none; }
 
     /* ── Tooltip ─────────────────────────────────────────────────────────── */
-    [data-tip] {
-      position: relative;
-      cursor: default;
-    }
-    [data-tip]::after {
-      content: attr(data-tip);
-      position: absolute;
-      bottom: calc(100% + 6px);
-      left: 50%;
-      transform: translateX(-50%);
+    [data-tip] { cursor: default; }
+    #_tip {
+      position: fixed;
       background: #1a2236;
       color: #e8edf8;
       font-size: 0.72rem;
       font-weight: 400;
-      font-style: normal;
       line-height: 1.45;
-      white-space: normal;
-      width: 200px;
-      padding: 0.45rem 0.6rem;
+      width: 210px;
+      padding: 0.45rem 0.65rem;
       border-radius: 6px;
-      box-shadow: 0 4px 12px rgba(0,0,0,.18);
+      box-shadow: 0 4px 14px rgba(0,0,0,.22);
       pointer-events: none;
-      opacity: 0;
-      transition: opacity 0.15s;
-      z-index: 100;
+      z-index: 9999;
+      display: none;
     }
-    [data-tip]:hover::after { opacity: 1; }
 
     code {
       background: #f1f5fb;
@@ -661,5 +650,31 @@
   </div>
 
 </div>
+
+<div id="_tip"></div>
+<script>
+(function () {
+  const tip = document.getElementById('_tip');
+  let hide;
+  document.addEventListener('mouseover', function (e) {
+    const el = e.target.closest('[data-tip]');
+    if (!el) return;
+    clearTimeout(hide);
+    tip.textContent = el.dataset.tip;
+    tip.style.display = 'block';
+    const r = el.getBoundingClientRect();
+    const tw = 210;
+    let left = r.left + r.width / 2 - tw / 2;
+    if (left < 8) left = 8;
+    if (left + tw > window.innerWidth - 8) left = window.innerWidth - tw - 8;
+    tip.style.left = left + 'px';
+    tip.style.top  = (r.top - tip.offsetHeight - 8) + 'px';
+  });
+  document.addEventListener('mouseout', function (e) {
+    if (!e.target.closest('[data-tip]')) return;
+    hide = setTimeout(() => { tip.style.display = 'none'; }, 80);
+  });
+})();
+</script>
 </body>
 </html>
