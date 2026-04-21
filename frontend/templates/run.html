@@ -1,0 +1,295 @@
+{% extends "base.html" %}
+{% block title %}Run — {{ campaign.name }}{% endblock %}
+{% block page_title %}Run campaign{% endblock %}
+{% block page_subtitle %}<p class="subtitle"><a href="/" style="color:inherit;text-decoration:none;">← Campaigns</a> &nbsp;·&nbsp; {{ campaign.name }}</p>{% endblock %}
+{% block page_actions %}
+  <a href="/campaigns/{{ campaign.id }}/results" role="button" class="secondary outline btn-sm">View results</a>
+{% endblock %}
+
+{% block content %}
+<style>
+  .mode-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .mode-card {
+    border: 2px solid #e5e9f0;
+    border-radius: var(--radius);
+    padding: 1rem 1.1rem;
+    cursor: pointer;
+    background: #fff;
+    text-align: left;
+    transition: border-color 0.15s, background 0.15s;
+    position: relative;
+  }
+
+  .mode-card:hover { border-color: var(--accent); background: var(--brand-light); }
+
+  .mode-card.selected {
+    border-color: var(--accent);
+    background: var(--brand-light);
+  }
+
+  .mode-card.selected::after {
+    content: "✓";
+    position: absolute;
+    top: 0.6rem;
+    right: 0.8rem;
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 0.9rem;
+  }
+
+  .mode-card input[type="radio"] { display: none; }
+
+  .mode-label {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--brand);
+    margin-bottom: 0.3rem;
+  }
+
+  .mode-desc {
+    font-size: 0.78rem;
+    color: #6b7a99;
+    line-height: 1.4;
+  }
+
+  .mode-steps {
+    display: flex;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+    margin-top: 0.6rem;
+  }
+
+  .step-pill {
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 0.15rem 0.5rem;
+    border-radius: 20px;
+    background: #e8edf5;
+    color: var(--brand);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  /* Log output */
+  .log-wrap {
+    background: #0f1923;
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+    font-family: monospace;
+    font-size: 0.8rem;
+    line-height: 1.6;
+    color: #a8c0d6;
+    min-height: 260px;
+    max-height: 520px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .log-wrap .log-success { color: #4ade80; }
+  .log-wrap .log-error   { color: #f87171; }
+  .log-wrap .log-step    { color: #60a5fa; font-weight: bold; }
+  .log-wrap .log-dim     { color: #4a6070; }
+
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+  }
+
+  .status-bar.running { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+  .status-bar.done    { background: var(--success-bg); color: var(--success); border: 1px solid #a7d8be; }
+  .status-bar.error   { background: var(--danger-bg);  color: var(--danger);  border: 1px solid #fca5a5; }
+  .status-bar.idle    { background: #f4f6fa; color: #6b7a99; border: 1px solid #e5e9f0; }
+
+  .spinner {
+    width: 14px; height: 14px;
+    border: 2px solid #bfdbfe;
+    border-top-color: #1d4ed8;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; align-items: start;">
+
+  <!-- ── Left: run config ── -->
+  <div>
+    <form method="post" action="/campaigns/{{ campaign.id }}/run" id="run-form">
+
+      <div class="section">
+        <div class="section-header"><h2>Segment</h2></div>
+        <label>
+          Which segment to run
+          <select name="segment" required>
+            {% for seg in campaign.segments %}
+            <option value="{{ seg.name }}">{{ seg.name }}</option>
+            {% endfor %}
+          </select>
+          <small class="help">Each segment is run independently. Run multiple segments one at a time.</small>
+        </label>
+      </div>
+
+      <div class="section">
+        <div class="section-header"><h2>Run mode</h2></div>
+        <div class="mode-grid" id="modeGrid">
+          {% for key, m in modes.items() %}
+          <label class="mode-card {% if loop.first %}selected{% endif %}" onclick="selectMode(this)">
+            <input type="radio" name="mode" value="{{ key }}" {% if loop.first %}checked{% endif %}>
+            <div class="mode-label">{{ m.label }}</div>
+            <div class="mode-desc">{{ m.description }}</div>
+            <div class="mode-steps">
+              {% for s in m.steps %}
+              <span class="step-pill">{{ s }}</span>
+              {% endfor %}
+            </div>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <button type="submit" id="startBtn"
+              {% if state and state.status == 'running' %}disabled{% endif %}>
+        {% if state and state.status == 'running' %}Running…{% else %}Start run{% endif %}
+      </button>
+
+    </form>
+  </div>
+
+  <!-- ── Right: live log ── -->
+  <div>
+    <div class="section" style="padding: 0; overflow: hidden;">
+      <div style="padding: 1rem 1.25rem; border-bottom: 1px solid #f0f2f7; display: flex; align-items: center; justify-content: space-between;">
+        <h2 style="margin:0; font-size: 1rem; font-weight: 700; color: var(--brand);">Live output</h2>
+        <div id="statusPill" style="font-size: 0.75rem; color: #8896b0;">No active run</div>
+      </div>
+
+      <div id="statusBar" style="display:none; margin: 0.75rem 1.25rem 0;" class="status-bar idle">
+        <div id="spinnerEl" class="spinner" style="display:none;"></div>
+        <span id="statusText">—</span>
+      </div>
+
+      <div style="padding: 0 1.25rem 1.25rem; margin-top: 0.75rem;">
+        <div class="log-wrap" id="logBox">
+          {% if state and state.status != 'idle' %}
+          Connecting…
+          {% else %}
+          Waiting for a run to start…
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const campaignId = {{ campaign.id | tojson }};
+let polling = null;
+
+function selectMode(card) {
+  document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+  card.querySelector('input[type="radio"]').checked = true;
+}
+
+function colorize(line) {
+  if (line.includes('✓') || line.includes('=== All steps')) return `<span class="log-success">${esc(line)}</span>`;
+  if (line.includes('✗') || line.includes('error') || line.includes('Error')) return `<span class="log-error">${esc(line)}</span>`;
+  if (line.includes('▶') || line.includes('===')) return `<span class="log-step">${esc(line)}</span>`;
+  if (line.startsWith('  $')) return `<span class="log-dim">${esc(line)}</span>`;
+  return esc(line);
+}
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+async function poll() {
+  try {
+    const r = await fetch(`/campaigns/${campaignId}/run/status`);
+    const d = await r.json();
+
+    const bar  = document.getElementById('statusBar');
+    const pill = document.getElementById('statusPill');
+    const txt  = document.getElementById('statusText');
+    const spin = document.getElementById('spinnerEl');
+    const btn  = document.getElementById('startBtn');
+
+    if (d.status === 'idle' || !d.status) {
+      bar.style.display = 'none';
+      pill.textContent = 'No active run';
+      btn.disabled = false;
+      btn.textContent = 'Start run';
+      stopPolling();
+      return;
+    }
+
+    bar.style.display = 'flex';
+    bar.className = `status-bar ${d.status}`;
+
+    if (d.status === 'running') {
+      spin.style.display = 'block';
+      txt.textContent = `Running step: ${d.current_step}  ·  ${d.segment}`;
+      pill.textContent = '● Running';
+      btn.disabled = true;
+      btn.textContent = 'Running…';
+    } else if (d.status === 'done') {
+      spin.style.display = 'none';
+      txt.textContent = `Completed in ${d.segment}  ·  Finished ${d.finished_at}`;
+      pill.textContent = '✓ Done';
+      btn.disabled = false;
+      btn.textContent = 'Start run';
+      stopPolling();
+    } else if (d.status === 'error') {
+      spin.style.display = 'none';
+      txt.textContent = `Error: ${d.error}`;
+      pill.textContent = '✗ Error';
+      btn.disabled = false;
+      btn.textContent = 'Start run';
+      stopPolling();
+    }
+
+    const box = document.getElementById('logBox');
+    box.innerHTML = d.lines.map(colorize).join('\n');
+    box.scrollTop = box.scrollHeight;
+
+  } catch (e) { /* network hiccup, ignore */ }
+}
+
+function startPolling() {
+  if (polling) return;
+  polling = setInterval(poll, 1500);
+  poll();
+}
+
+function stopPolling() {
+  if (polling) { clearInterval(polling); polling = null; }
+}
+
+document.getElementById('run-form').addEventListener('submit', () => {
+  // start polling after short delay to let the POST redirect complete
+  setTimeout(startPolling, 800);
+});
+
+// Auto-start polling if a run is currently active
+{% if state and state.status == 'running' %}
+startPolling();
+{% elif state and state.status in ('done', 'error') %}
+poll(); // show last result once
+{% endif %}
+</script>
+{% endblock %}

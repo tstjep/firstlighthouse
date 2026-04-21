@@ -1,0 +1,351 @@
+#!/usr/bin/env python3
+"""
+Company Info Enrichment Agent
+==============================
+Reads the sheet for a given segment and fills in any rows with missing
+information (website, LinkedIn, size, HQ location, notes).
+
+Handles manually-added companies — a company name alone is enough to start.
+
+Usage:
+    python agents/enrich_agent.py --campaign immigration-uk --tab LawFirms
+    python agents/enrich_agent.py --campaign immigration-uk --tab LawFirms --min-rating 8
+    python agents/enrich_agent.py --campaign immigration-uk --tab LawFirms --max-rows 10
+"""
+
+import argparse
+import asyncio
+import json
+import re
+import sys
+from datetime import datetime
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+import config as cfg
+from campaign import Campaign
+from agents.provider import build_provider
+from tools.serp_tool import SerpSearchTool
+from tools.sheets_update_info_tool import SheetsUpdateInfoTool
+
+from google.oauth2.service_account import Credentials
+from googleapiclient.discovery import build
+
+from nanobot.agent.loop import AgentLoop
+from nanobot.bus.queue import MessageBus
+
+_SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+
+_PREFETCH_CONCURRENCY = 20
+_CHUNK_SIZE = 20
+_LINKEDIN_RE = re.compile(r"linkedin\.com", re.I)
+_DOMAIN_RE   = re.compile(r"https?://(?:www\.)?([^/?#]+)")
+
+# Fixed column indices (0-based, A–H)
+_COL_NAME     = 0  # A
+_COL_RATING   = 2  # C
+_COL_NOTES    = 3  # D
+_COL_WEBSITE  = 4  # E
+_COL_LINKEDIN = 5  # F
+_COL_SIZE     = 6  # G
+_COL_HQ       = 7  # H
+
+
+def _company_queries(company: dict, enrich_context: str) -> tuple[str | None, str | None]:
+    name     = (company.get("company_name") or "").strip()
+    website  = (company.get("website")      or "").strip()
+    linkedin = (company.get("linkedin")     or "").strip()
+
+    if website and not _LINKEDIN_RE.search(website):
+        m = _DOMAIN_RE.match(website)
+        domain = m.group(1) if m else website
+        query_a = f'"{domain}"'
+    elif name:
+        query_a = f'"{name}" {enrich_context}'
+    else:
+        query_a = None
+
+    query_b = f'site:linkedin.com/company "{name}"' if name and not linkedin else None
+    return query_a, query_b
+
+
+async def _prefetch_searches(
+    companies: list[dict],
+    api_key: str,
+    enrich_context: str,
+    concurrency: int = _PREFETCH_CONCURRENCY,
+) -> dict[int, dict[str, str]]:
+    tool = SerpSearchTool(api_key=api_key)
+    sem  = asyncio.Semaphore(concurrency)
+
+    async def bounded(query: str) -> str:
+        async with sem:
+            return await tool.execute(query=query, num=5)
+
+    jobs: list[tuple[int, str, object]] = []
+    for c in companies:
+        qa, qb = _company_queries(c, enrich_context=enrich_context)
+        if qa:
+            jobs.append((c["row_index"], "a", bounded(qa)))
+        if qb:
+            jobs.append((c["row_index"], "b", bounded(qb)))
+
+    if not jobs:
+        return {}
+
+    print(f"  Pre-fetching {len(jobs)} SerpAPI searches for {len(companies)} companies…")
+    raw = await asyncio.gather(*(coro for _, _, coro in jobs))
+
+    results: dict[int, dict[str, str]] = {}
+    for (row_idx, label, _), text in zip(jobs, raw):
+        results.setdefault(row_idx, {})[label] = text
+
+    print(f"  Done — {len(jobs)} searches complete.")
+    return results
+
+
+def fetch_incomplete_rows(
+    campaign: Campaign,
+    credentials_file: str,
+    tab: str,
+    min_rating: int = 0,
+) -> list[dict]:
+    try:
+        creds = Credentials.from_service_account_file(credentials_file, scopes=_SCOPES)
+        service = build("sheets", "v4", credentials=creds)
+        result = (
+            service.spreadsheets().values()
+            .get(spreadsheetId=campaign.spreadsheet_id, range=f"{tab}!A:H")
+            .execute()
+        )
+    except Exception as exc:
+        print(f"[warning] fetch_incomplete_rows: {exc}")
+        return []
+
+    rows = result.get("values", [])
+    if len(rows) <= 1:
+        return []
+
+    incomplete = []
+    for i, row in enumerate(rows[1:], start=2):
+        def cell(idx: int, _row=row) -> str:
+            return _row[idx].strip() if idx < len(_row) else ""
+
+        company_name = cell(_COL_NAME)
+        notes        = cell(_COL_NOTES)
+        website      = cell(_COL_WEBSITE)
+        linkedin     = cell(_COL_LINKEDIN)
+        rating_raw   = cell(_COL_RATING)
+
+        if notes:
+            continue
+        if not company_name and not website and not linkedin:
+            continue
+        if min_rating > 0:
+            try:
+                if int(rating_raw) < min_rating:
+                    continue
+            except (ValueError, TypeError):
+                pass
+
+        incomplete.append({
+            "row_index":    i,
+            "company_name": company_name,
+            "website":      website,
+            "linkedin":     linkedin,
+            "size":         cell(_COL_SIZE),
+            "hq_location":  cell(_COL_HQ),
+        })
+
+    return incomplete
+
+
+def build_task(
+    campaign: Campaign,
+    incomplete_rows: list[dict],
+    tab: str,
+    prefetched: dict | None = None,
+) -> str:
+    seg = campaign.segment(tab)
+    context_note = (
+        f"\nCONTEXT: These companies are {seg.icp_context}. "
+        "In the notes field, write a one-sentence description of what the company does "
+        f"and what specific work they focus on.\n"
+    )
+
+    if prefetched is not None:
+        sections: list[str] = []
+        for row in incomplete_rows:
+            row_idx = row["row_index"]
+            name = row.get("company_name") or "(unknown)"
+            known = {k: v for k, v in row.items() if v and k != "row_index"}
+            lines = [f"### Row {row_idx}: {name}"]
+            if known:
+                lines.append(f"Known data: {json.dumps(known, ensure_ascii=False)}")
+            res = prefetched.get(row_idx, {})
+            if res.get("a"):
+                lines.append(f"Search results:\n{res['a']}")
+            if res.get("b"):
+                lines.append(f"LinkedIn search:\n{res['b']}")
+            if not res:
+                lines.append("(no search results available — use known data only)")
+            sections.append("\n".join(lines))
+
+        companies_block = "\n\n---\n\n".join(sections)
+
+        return f"""You are a company-data enrichment agent. Below are {len(incomplete_rows)} companies with pre-fetched search results. Extract information from the results and call sheets_update_company_info for each row.
+{context_note}
+Instructions:
+- From search result titles, URLs, and snippets (do NOT visit URLs), extract:
+    company_name  (always required)
+    website       (official company URL; skip if already correct in Known data)
+    linkedin      (LinkedIn company page URL; skip if already in Known data)
+    size          (employee count: "1-10", "11-50", "51-200", "201-500", "501-1000", "1000+")
+    hq_location   (city and country, e.g. "London, UK")
+    notes         (one-sentence description of what the company does and their focus area)
+- Call sheets_update_company_info with row_index and the fields you found.
+    Always pass company_name.
+    Do NOT pass fields already listed under "Known data" (don't overwrite).
+    If "Known data" website is a linkedin.com URL: pass it as linkedin, omit website.
+    Do NOT add new rows.
+- After all companies: print total updated and list any where nothing was found.
+
+---
+
+{companies_block}
+""".strip()
+
+    # Fallback: tool-based prompt (agent runs its own searches)
+    rows_json = json.dumps(incomplete_rows, ensure_ascii=False, separators=(",", ":"))
+    return f"""
+You are a company-data enrichment agent. Fill in missing information for the
+{len(incomplete_rows)} companies listed below.
+{context_note}
+Companies to enrich (row_index is the sheet row to update):
+{rows_json}
+
+For each company:
+1. Run 1–2 targeted searches to find company name, website, LinkedIn, size, location, description.
+2. Call sheets_update_company_info with all fields you found.
+   - Always pass company_name.
+   - Do NOT overwrite fields that already have correct values.
+   - Do NOT add new rows.
+3. After all companies: print a summary.
+""".strip()
+
+
+async def _run_enrichment_chunk(
+    chunk: list[dict],
+    prefetched: dict,
+    campaign: Campaign,
+    tab: str,
+    credentials_file: str,
+    provider,
+    model: str,
+    chunk_num: int,
+    total_chunks: int,
+) -> str | None:
+    max_iterations = len(chunk) * 3 + 10
+
+    bus = MessageBus()
+    agent = AgentLoop(
+        bus=bus,
+        provider=provider,
+        workspace=PROJECT_ROOT,
+        model=model,
+        temperature=0.1,
+        max_tokens=32768,
+        max_iterations=max_iterations,
+        memory_window=60,
+    )
+
+    agent.tools.register(SheetsUpdateInfoTool(
+        spreadsheet_id=campaign.spreadsheet_id,
+        credentials_file=credentials_file,
+        sheet_name=tab,
+    ))
+
+    async def on_progress(text: str) -> None:
+        if text:
+            print(f"[chunk {chunk_num}/{total_chunks}] {text}")
+
+    run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+    result = await agent.process_direct(
+        content=build_task(campaign, chunk, tab=tab, prefetched=prefetched),
+        session_key=f"enrich:{campaign.id}:{tab}:{run_id}:c{chunk_num}",
+        channel="cli",
+        chat_id=f"enrich_{campaign.id}_{tab}_{run_id}_c{chunk_num}",
+        on_progress=on_progress,
+    )
+    await agent.close_mcp()
+    return result.content if result else None
+
+
+async def main(campaign: Campaign, tab: str, max_rows: int = 0, min_rating: int = 0) -> None:
+    credentials_file = str(PROJECT_ROOT / campaign.credentials_file)
+
+    errors = []
+    if not campaign.spreadsheet_id:
+        errors.append("spreadsheet_id not set in campaign config")
+    if not cfg.SERPAPI_KEY:
+        errors.append("SERPAPI_KEY not set in config.py")
+    if not Path(credentials_file).exists():
+        errors.append(f"Credentials file not found: {credentials_file}")
+    if errors:
+        for e in errors:
+            print(f"  ✗ {e}")
+        sys.exit(1)
+
+    seg = campaign.segment(tab)
+    print(f"Starting enrichment agent — Campaign: {campaign.name}  Tab: {tab}")
+    if min_rating > 0:
+        print(f"Min rating filter: {min_rating}+")
+
+    incomplete = fetch_incomplete_rows(campaign, credentials_file, tab, min_rating=min_rating)
+    if max_rows and len(incomplete) > max_rows:
+        print(f"Rows needing enrichment: {len(incomplete)} (capped to {max_rows})")
+        incomplete = incomplete[:max_rows]
+    else:
+        print(f"Rows needing enrichment: {len(incomplete)}")
+    if not incomplete:
+        print("Nothing to enrich — all rows already have notes filled.")
+        return
+
+    provider, model = build_provider()
+    print(f"Model: {model}\n")
+
+    prefetched = await _prefetch_searches(
+        incomplete, cfg.SERPAPI_KEY, enrich_context=seg.enrich_context
+    )
+
+    chunks = [incomplete[i:i + _CHUNK_SIZE] for i in range(0, len(incomplete), _CHUNK_SIZE)]
+    print(f"\nProcessing {len(incomplete)} companies in {len(chunks)} chunk(s):\n" + "-" * 60)
+
+    for chunk_num, chunk in enumerate(chunks, 1):
+        print(f"\n--- Chunk {chunk_num}/{len(chunks)} ({len(chunk)} companies) ---")
+        result = await _run_enrichment_chunk(
+            chunk=chunk, prefetched=prefetched, campaign=campaign, tab=tab,
+            credentials_file=credentials_file, provider=provider, model=model,
+            chunk_num=chunk_num, total_chunks=len(chunks),
+        )
+        content = result or ""
+        if content and content.strip() != "I've completed processing but have no response to give.":
+            print(f"\n[chunk {chunk_num}] {content}")
+
+    print(f"\nEnrichment complete — {len(chunks)} chunk(s) processed.")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Company enrichment agent")
+    parser.add_argument("--campaign",   default="immigration-uk")
+    parser.add_argument("--tab",        default=None)
+    parser.add_argument("--max-rows",   type=int, default=0)
+    parser.add_argument("--min-rating", type=int, default=0)
+    args = parser.parse_args()
+
+    campaign = Campaign.load(args.campaign)
+    tab = args.tab or campaign.segments[0].name
+
+    asyncio.run(main(campaign, tab, max_rows=args.max_rows, min_rating=args.min_rating))

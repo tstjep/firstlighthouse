@@ -1,0 +1,334 @@
+{% extends "base.html" %}
+{% block title %}{{ campaign.name }} — Results{% endblock %}
+{% block page_title %}{{ campaign.name }}{% endblock %}
+{% block page_subtitle %}<p class="subtitle"><a href="/" style="color:inherit;text-decoration:none;">← Campaigns</a> &nbsp;·&nbsp; <a href="/campaigns/{{ campaign.id }}/edit" style="color:inherit;text-decoration:none;">Edit campaign</a></p>{% endblock %}
+{% block page_actions %}
+  <a href="/campaigns/{{ campaign.id }}/results/{{ active_segment }}/export/waalaxy"
+     role="button" class="secondary outline btn-sm">⬇ Waalaxy CSV</a>
+  <a href="/campaigns/{{ campaign.id }}/results/{{ active_segment }}/export/lemlist"
+     role="button" class="secondary outline btn-sm">⬇ Lemlist CSV</a>
+{% endblock %}
+{% block content_class %}wide{% endblock %}
+
+{% block content %}
+<style>
+  /* Results-specific overrides */
+
+
+  /* Segment tabs */
+  .seg-tabs {
+    display: flex;
+    gap: 0.25rem;
+    border-bottom: 2px solid var(--pico-muted-border-color);
+    margin-bottom: 1.5rem;
+    overflow-x: auto;
+  }
+
+  .seg-tab {
+    padding: 0.5rem 1.1rem;
+    border-radius: 6px 6px 0 0;
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-decoration: none;
+    color: var(--pico-muted-color);
+    border: 1px solid transparent;
+    border-bottom: none;
+    white-space: nowrap;
+    margin-bottom: -2px;
+  }
+
+  .seg-tab:hover { color: var(--pico-color); background: var(--pico-muted-background-color); }
+
+  .seg-tab.active {
+    color: var(--pico-primary);
+    background: var(--pico-background-color);
+    border-color: var(--pico-muted-border-color);
+    border-bottom-color: var(--pico-background-color);
+    font-weight: 600;
+  }
+
+  .seg-tab .count {
+    display: inline-block;
+    background: var(--pico-muted-background-color);
+    border-radius: 10px;
+    padding: 0 0.4rem;
+    font-size: 0.72rem;
+    margin-left: 0.3rem;
+    font-weight: 400;
+  }
+
+  /* Toolbar */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .toolbar select, .toolbar input[type="search"] {
+    margin: 0;
+    padding: 0.35rem 0.65rem;
+    font-size: 0.85rem;
+    width: auto;
+  }
+
+  .toolbar .spacer { flex: 1; }
+
+  /* Table */
+  .results-wrap { overflow-x: auto; }
+
+  table.results {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+    white-space: nowrap;
+  }
+
+  table.results th {
+    background: #1b4880;
+    color: #fff;
+    padding: 0.5rem 0.65rem;
+    font-weight: 600;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    border-right: 1px solid rgba(255,255,255,0.15);
+  }
+
+  table.results td {
+    padding: 0.45rem 0.65rem;
+    border-bottom: 1px solid var(--pico-muted-border-color);
+    vertical-align: top;
+    max-width: 260px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  table.results tr:nth-child(even) td { background: var(--pico-card-background-color); }
+  table.results tr:hover td { background: var(--pico-muted-background-color); }
+
+  /* Rating badge */
+  .rating {
+    display: inline-block;
+    width: 2rem;
+    text-align: center;
+    border-radius: 4px;
+    font-weight: 700;
+    font-size: 0.82rem;
+    padding: 0.1rem 0;
+  }
+
+  .rating.high   { background: #93c47d; color: #1a3a0a; }  /* 8–10 */
+  .rating.mid    { background: #b6d7a8; color: #1a3a0a; }  /* 6–7  */
+  .rating.low    { background: #ffe599; color: #5a4000; }  /* 4–5  */
+  .rating.poor   { background: #ea9999; color: #5a0000; }  /* 1–3  */
+  .rating.prov   { background: var(--pico-muted-background-color); color: var(--pico-muted-color); } /* ~N */
+
+  /* Signal cells */
+  .sig-yes { color: #276227; font-weight: 600; }
+  .sig-no  { color: #c0392b; }
+  .sig-na  { color: var(--pico-muted-color); }
+
+  /* Notes / source truncation with tooltip */
+  td.wrap { white-space: normal; max-width: 220px; }
+  td[title] { cursor: help; }
+
+  /* Contacts */
+  .contact-list { white-space: normal; }
+  .contact-list a { display: block; font-size: 0.78rem; }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--pico-muted-color);
+  }
+
+  .empty-state p { font-size: 1rem; margin-bottom: 0.5rem; }
+  .empty-state small { font-size: 0.85rem; }
+</style>
+
+<!-- Segment tabs -->
+<nav class="seg-tabs">
+  {% for seg_name, rows in all_segments.items() %}
+  <a href="/campaigns/{{ campaign.id }}/results/{{ seg_name }}"
+     class="seg-tab {{ 'active' if seg_name == active_segment else '' }}">
+    {{ seg_name }}
+    <span class="count">{{ rows | length }}</span>
+  </a>
+  {% endfor %}
+  {% if not all_segments %}
+  <span class="seg-tab active">No data yet</span>
+  {% endif %}
+</nav>
+
+<!-- Toolbar -->
+<div class="toolbar">
+  <input type="search" id="search" placeholder="Filter by name…" oninput="filterRows()" style="width: 200px;">
+  <select id="minRating" onchange="filterRows()">
+    <option value="0">All ratings</option>
+    <option value="8">Rating ≥ 8</option>
+    <option value="6">Rating ≥ 6</option>
+    <option value="4">Rating ≥ 4</option>
+  </select>
+  <select id="sigFilter" onchange="filterRows()">
+    <option value="">Any signals</option>
+    {% for sig in campaign.signals %}
+    <option value="{{ sig.key }}">{{ sig.name }} = Yes</option>
+    {% endfor %}
+  </select>
+  <span class="spacer"></span>
+  <small id="rowCount" style="color: var(--pico-muted-color);"></small>
+</div>
+
+<!-- Table -->
+{% if rows %}
+<div class="results-wrap">
+<table class="results" id="resultsTable">
+  <thead>
+    <tr>
+      <th style="min-width:180px">Company</th>
+      <th style="min-width:60px">Rating</th>
+      <th style="min-width:200px">Notes</th>
+      <th style="min-width:140px">Website</th>
+      <th style="min-width:90px">Size</th>
+      <th style="min-width:120px">HQ</th>
+      <th style="min-width:100px">Added</th>
+      {% for sig in campaign.signals %}
+      <th style="min-width:80px" title="{{ sig.description }}">{{ sig.name | replace(' Signal','') }}</th>
+      {% endfor %}
+      <th style="min-width:200px">Contacts</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    {% set rating_num = row.rating | int(default=0) if not row.rating.startswith('~') else 0 %}
+    <tr data-name="{{ row.name | lower }}"
+        data-rating="{{ row.rating }}"
+        data-signals="{{ row.signals | tojson }}">
+      <td style="max-width:200px; white-space:normal; font-weight:500;">
+        {{ row.name }}
+        {% if row.linkedin %}
+        <a href="{{ row.linkedin }}" target="_blank" rel="noopener" style="font-size:0.72rem; display:block; color:var(--pico-muted-color);">LinkedIn ↗</a>
+        {% endif %}
+      </td>
+      <td style="text-align:center;">
+        {% if row.rating %}
+          {% if row.rating.startswith('~') %}
+            <span class="rating prov" title="Provisional — signals not yet run">{{ row.rating }}</span>
+          {% elif rating_num >= 8 %}
+            <span class="rating high">{{ row.rating }}</span>
+          {% elif rating_num >= 6 %}
+            <span class="rating mid">{{ row.rating }}</span>
+          {% elif rating_num >= 4 %}
+            <span class="rating low">{{ row.rating }}</span>
+          {% else %}
+            <span class="rating poor">{{ row.rating }}</span>
+          {% endif %}
+        {% else %}
+          <span class="sig-na">—</span>
+        {% endif %}
+      </td>
+      <td class="wrap" title="{{ row.notes }}">{{ row.notes | truncate(100) }}</td>
+      <td>
+        {% if row.website %}
+        <a href="{{ row.website }}" target="_blank" rel="noopener">
+          {{ row.website | replace('https://','') | replace('http://','') | truncate(35) }}
+        </a>
+        {% else %}<span class="sig-na">—</span>{% endif %}
+      </td>
+      <td>{{ row.size or '—' }}</td>
+      <td>{{ row.hq or '—' }}</td>
+      <td>{{ row.date_added or '—' }}</td>
+
+      {% for sig in campaign.signals %}
+      {% set sig_data = row.signals.get(sig.key, {}) %}
+      {% set sig_val  = sig_data.get('value', '') %}
+      {% set sig_src  = sig_data.get('source', '') %}
+      <td title="{{ sig_src }}" style="text-align:center;">
+        {% if sig_val == 'Yes' %}
+          <span class="sig-yes">✓</span>
+        {% elif sig_val == 'No' %}
+          <span class="sig-no">✗</span>
+        {% else %}
+          <span class="sig-na">—</span>
+        {% endif %}
+      </td>
+      {% endfor %}
+
+      <td class="wrap">
+        {% if row.contacts %}
+        <div class="contact-list">
+          {% for c in row.contacts %}
+          {% set parts = c.split('|') %}
+          <a href="{{ parts[2].strip() if parts | length > 2 else '#' }}"
+             target="_blank" rel="noopener" title="{{ c }}">
+            {{ parts[0].strip() }}{% if parts | length > 1 %} · {{ parts[1].strip() }}{% endif %}
+          </a>
+          {% endfor %}
+        </div>
+        {% else %}
+          <span class="sig-na">—</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{% else %}
+<div class="empty-state">
+  <p>No companies yet in <strong>{{ active_segment }}</strong>.</p>
+  <small>Run the search agent to populate this segment:<br>
+    <code>PYTHONPATH="" ./venv/bin/python agents/search_agent.py --campaign {{ campaign.id }} --tab {{ active_segment }}</code>
+  </small>
+</div>
+{% endif %}
+
+<script>
+function filterRows() {
+  const q       = document.getElementById('search').value.toLowerCase();
+  const minR    = parseInt(document.getElementById('minRating').value) || 0;
+  const sigKey  = document.getElementById('sigFilter').value;
+  const rows    = document.querySelectorAll('#resultsTable tbody tr');
+  let visible   = 0;
+
+  rows.forEach(tr => {
+    const name    = tr.dataset.name || '';
+    const ratingRaw = tr.dataset.rating || '';
+    const signals = JSON.parse(tr.dataset.signals || '{}');
+
+    // name filter
+    if (q && !name.includes(q)) { tr.style.display = 'none'; return; }
+
+    // rating filter
+    if (minR > 0) {
+      if (ratingRaw.startsWith('~')) { tr.style.display = 'none'; return; }
+      const r = parseInt(ratingRaw) || 0;
+      if (r < minR) { tr.style.display = 'none'; return; }
+    }
+
+    // signal filter
+    if (sigKey) {
+      const sv = (signals[sigKey] || {}).value || '';
+      if (sv !== 'Yes') { tr.style.display = 'none'; return; }
+    }
+
+    tr.style.display = '';
+    visible++;
+  });
+
+  const total = rows.length;
+  document.getElementById('rowCount').textContent =
+    visible === total ? `${total} companies` : `${visible} of ${total}`;
+}
+
+// initialise count on load
+document.addEventListener('DOMContentLoaded', filterRows);
+</script>
+{% endblock %}

@@ -1,6 +1,16 @@
-# Immigration Finder — UK Immigration Lead Intelligence
+# salesintel
 
-Automatically builds a ranked list of UK immigration companies so LawFairy knows who to contact first and who to approach as a channel partner.
+Automatically builds ranked lists of target companies in any market — so you know exactly who to call, email, or interview first.
+
+Built on **AI agents** ([nanobot](https://github.com/nanobot-ai/nanobot)): each step is an autonomous agent that runs searches, reasons over results, and decides what to write — so it handles ambiguous company data, missing websites, and partial information the way a researcher would, not with brittle rules.
+
+Works for any stage of go-to-market:
+
+- **0→1 sales** — startups who need to find and prioritise their first paying customers without a dedicated sales team or expensive data tools
+- **User research** — founders and PMs who need a pool of warm contacts to recruit for discovery interviews
+- **Outbound at scale** — growth teams building segmented, signal-qualified prospect lists for sequenced outreach (exports to Waalaxy, Lemlist, or any CSV-based outreach tool)
+
+Configure your ICP, region, and target segments through the **web UI**. Salesintel handles the searching, enriching, signal detection, scoring, and contact finding — and writes everything to a Google Sheet your team can work from directly.
 
 ---
 
@@ -8,109 +18,114 @@ Automatically builds a ranked list of UK immigration companies so LawFairy knows
 
 ### What this produces
 
-A Google Sheet with four lists of UK immigration companies, each row scored 1–10 so you can sort by best prospect and start at the top.
-
-**Direct sales targets** (rated 1–10):
-
-| List | Who's on it |
-|------|------------|
-| LawFirms | Immigration solicitors regulated by the SRA |
-| Advisors | OISC-regulated advisers and corporate immigration consultants |
-| Charities | NGOs providing immigration advice — lower commercial priority but worth outreach for awareness |
-
-**Channel partners** (rated separately):
-
-| List | Who's on it |
-|------|------------|
-| LegaltechBrokers | Consultants, resellers, and integration partners (e.g. BamLegal, 3kites) who advise law firms on buying software — they would refer or resell LawFairy, not buy directly |
+A Google Sheet with one tab per target segment (e.g. `LawFirms`, `Advisors`, `Charities`), each row scored 1–10 so you can sort by best prospect and work top-down.
 
 ### How companies are scored
 
-Each company is automatically checked for five buying signals. The more signals detected, the higher the rating.
+Each company is automatically checked for the **buying signals** you define. The more signals detected, the higher the rating.
 
-| Signal | What it means for sales |
-|--------|------------------------|
-| **Corporate** | Does employer/sponsor licence work — the core use case for LawFairy |
-| **Specialist** | Immigration is the firm's primary or sole practice area (not one department in a general firm) |
-| **MultiVisa** | Handles many visa types — more complexity, more to gain from case management |
-| **HighVolume** | Large team or high caseload — more cases = more pain without good software |
-| **Growth** | Hiring, opening offices, expanding — actively investing in the business |
+Example signals for a UK immigration campaign (selling case management software to law firms):
 
-**Rating guide:**
+| Signal | What it detects |
+|--------|----------------|
+| **Corporate** | Handles employer/sponsor licence work — core use case |
+| **Specialist** | Immigration is the firm's primary practice area |
+| **MultiVisa** | Handles many visa types — more complexity, more value |
+| **HighVolume** | Large team or high caseload — more cases = more pain |
+| **Growth** | Hiring, opening offices, expanding |
 
-| Rating | What it means |
-|--------|--------------|
-| 8–10 | Prime — contact first, strong fit for LawFairy |
-| 6–7 | Strong — worth a call, clear immigration practice |
-| 4–5 | Solid — general immigration work, lower urgency |
-| 2–3 | Weak — small, niche, or limited information |
-| 1 | Unknown — not enough data yet |
+Signals are fully configurable per campaign through the UI. You can also define **negative signals** to automatically down-rank or exclude companies that don't fit — see [Excluding companies](#excluding-companies) below.
 
 ### Sheet columns
 
 | Column | What it shows |
 |--------|--------------|
 | A | Company name |
-| B | LawFairy internal comment |
+| B | Internal comment |
 | C | Rating 1–10 |
-| D | Description / notes |
+| D | Notes / description |
 | E | Website |
 | F | LinkedIn |
 | G | Company size |
 | H | HQ location |
 | I | Date added |
-| J–K | Corporate signal (Yes/No) + evidence URL |
-| L–M | Specialist signal + evidence URL |
-| N–O | MultiVisa signal + evidence URL |
-| P–Q | HighVolume signal + evidence URL |
-| R–S | Growth signal + evidence URL |
-| T | Contacts — found decision-makers, one per line: `First Last \| Role \| linkedin_url` |
+| J–… | Signal columns (Yes/No + evidence URL, one pair per signal) |
+| Last | Contacts — decision-makers: `First Last \| Role \| linkedin_url` |
 
 ---
 
 ## How it works
 
-Five automated steps build and maintain the sheet:
+Five automated steps:
 
-**1. Find companies**
-Runs dozens of targeted Google searches (by city, visa type, professional body, LinkedIn) and adds new companies to the sheet. Deduplicates across all tabs so the same company never appears twice.
+**1. Find companies** (`search_agent.py`)
+Runs targeted searches (SerpAPI) and adds new companies to the sheet. Deduplicates across all tabs.
 
-**2. Enrich missing data**
-For companies added without a full profile (no notes), fires SerpAPI searches in parallel and uses an LLM to fill in the missing website, LinkedIn, company size, HQ location, and description. Handles rows added manually by a human — even a company name alone is enough to start enrichment.
+**2. Enrich missing data** (`enrich_agent.py`)
+For rows with no profile, fires SerpAPI searches and uses an LLM to fill in website, LinkedIn, size, HQ, and description. Works on manually-added rows too — a company name alone is enough.
 
-**3. Detect buying signals**
+**3. Detect buying signals** (`signal_agent.py`)
 For each company, collects evidence from three sources in order:
-1. `site:<domain>` SerpAPI search — precise, comes directly from the firm's own site
-2. Name-based SerpAPI search — fallback for large firms whose domains block site: searches (e.g. Fragomen)
-3. Direct HTTP scrape of the company's homepage — last resort when both searches return nothing
+1. `site:<domain>` SerpAPI search — precise, from the firm's own site
+2. Name-based SerpAPI search — fallback for firms whose domains block site: searches
+3. Direct HTTP scrape of the homepage — last resort
 
-An LLM then reads the collected text and decides Yes/No for each of the five signals, with a source URL for manual verification. LegaltechBrokers is skipped — signals are not relevant for partners.
+An LLM reads the collected text and decides Yes/No for each signal, with a source URL for verification.
 
-**4. Rate each company 1–10**
-Rule-based scoring from detected signals — no LLM needed. Rows without signals are skipped (run signal detection first).
+**4. Rate each company 1–10** (`rating_agent.py`)
+Rule-based scoring from detected signals — no LLM needed. Signal points are defined in the campaign config.
 
-| Points | Source |
-|--------|--------|
-| +3 | Corporate signal = Yes |
-| +3 | HighVolume signal = Yes |
-| +2 | Specialist signal = Yes |
-| +2 | MultiVisa signal = Yes |
-| +1 | Growth signal = Yes |
-| +1 | Size in sweet spot (1–200 staff) |
-| +1 | Complete profile (website + LinkedIn + size all present) |
+**5. Find contacts** (`contact_agent.py`)
+For each rated company (default: rating ≥ 8), searches LinkedIn (via SerpAPI) for decision-makers in roles you define per segment. Falls back to LinkedIn's Voyager API using browser session cookies. Contacts are written back to the sheet and exported as a CSV ready for import into outreach tools like **Waalaxy** or **Lemlist**.
 
-Score → rating: 0pts=1, 1pt=2, … 9+pts=10 (capped). LegaltechBrokers is skipped.
+---
 
-**5. Find contact people**
-For each rated company (default: rating ≥ 8), searches LinkedIn (via SerpAPI) for the Managing Partner, Head of Immigration, Partner, or Director and outputs a Waalaxy-compatible CSV for outreach. Role priorities are tuned per tab — LawFirms targets senior partners and immigration directors; Charities targets CEOs and service heads; LegaltechBrokers targets managing directors and consultants.
+## Campaigns
 
-Contacts are also written back to column T of the sheet as `First Last | Role | linkedin_url` (one per line).
+Each campaign defines a market: who you're targeting, where they are, what signals matter, and what contacts to find. You configure this through the **web UI** — salesintel persists it as a JSON file in `campaigns/` that the agents read at runtime.
 
-If SerpAPI finds fewer than the threshold (default: 2) profiles for a company, it automatically falls back to querying LinkedIn's Voyager API using browser session cookies (`LINKEDIN_LI_AT` + `LINKEDIN_JSESSIONID` in `.env`).
+Start the UI:
+```bash
+cd frontend && npm run dev
+# open http://localhost:5173
+```
+
+The UI lets you set:
+- **ICP** — a plain-English description of your product and target audience, injected into LLM prompts
+- **Region** — country, TLD filter (e.g. `.co.uk`), and SerpAPI geolocation params
+- **Segments** — one per Google Sheet tab, each with its own search queries, contact roles, and signal rules
+- **Signals** — what to detect, with keywords, LLM definitions, and point values for scoring
+- **LinkedIn** — your session cookies for the contact-finding fallback
+
+---
+
+## Excluding companies
+
+Use a **negative signal** to identify companies that are a poor fit, then configure the rating rules to penalise them.
+
+**Example: exclude general law firms that only do immigration as a side practice**
+
+In the UI, add a signal named `GeneralPractice` with a negative point value (`-3`) and a definition like:
+
+> Mark Yes if the firm lists unrelated practice areas alongside immigration — e.g. conveyancing, family law, criminal defence, personal injury, employment, wills, or commercial litigation. Mark No if immigration is clearly their primary or sole focus.
+
+Any firm where `GeneralPractice = Yes` loses 3 points from their score, pushing them below the contact threshold.
+
+**Example: exclude very large firms that already use enterprise software**
+
+Add a signal `EnterpriseSize` that marks Yes when the company has 500+ staff or is part of an international network. Assign `-2` points. Large firms may be too slow to buy, or already locked into a platform.
+
+**Example: exclude charities that only offer free legal aid (no commercial relationship possible)**
+
+Add a signal `LegalAidOnly` that marks Yes when the company mentions "legal aid", "pro bono", or "free advice" as their primary offering — without any paid services listed. Assign `-5` to effectively filter them out of outreach.
+
+Negative signals appear as their own columns in the sheet so you can see the reasoning, and they're factored into the 1–10 score automatically.
 
 ---
 
 ## Setup
+
+### Python
 
 ```bash
 python3 -m venv venv
@@ -120,74 +135,77 @@ pip install -r requirements.txt
 
 Place `melt2.json` (Google service account key) in the project root. Share the spreadsheet with the service account email (Editor access).
 
-Configure `config.py`:
-```python
-SPREADSHEET_ID   = "<your-spreadsheet-id>"
-SERPAPI_KEY      = "<your-serpapi-key>"
-CREDENTIALS_FILE = "melt2.json"
-VERTEX_PROJECT   = "<your-gcp-project>"
-```
-
 For the LinkedIn contact fallback, add to `.env`:
 ```
-LINKEDIN_LI_AT=<your li_at cookie value>
-LINKEDIN_JSESSIONID=<your JSESSIONID cookie value>
+LINKEDIN_LI_AT=<your li_at cookie>
+LINKEDIN_JSESSIONID=<your JSESSIONID cookie>
 ```
 Get these from browser DevTools → Application → Cookies while logged into linkedin.com.
 
-**Important:** always run with `PYTHONPATH=""` to avoid the system `typing_extensions` shadowing the venv's version:
+**Always run with `PYTHONPATH=""`** to avoid the system `typing_extensions` shadowing the venv:
 ```bash
-PYTHONPATH="" ./venv/bin/python agents/immigration_search_agent.py --tab LawFirms
+PYTHONPATH="" ./venv/bin/python agents/search_agent.py --campaign immigration-uk --tab LawFirms
 ```
 
-### Set up / reset sheet formatting
+### Frontend (campaign editor)
 
 ```bash
-PYTHONPATH="" ./venv/bin/python immigration_sheets_setup.py              # format all tabs
-PYTHONPATH="" ./venv/bin/python immigration_sheets_setup.py --tab LawFirms  # one tab only
+cd frontend
+npm install
+npm run dev
+```
+
+Open `http://localhost:5173` to create and edit campaign configs.
+
+### API
+
+```bash
+PYTHONPATH="" ./venv/bin/python -m uvicorn api.main:app --reload
 ```
 
 ---
 
 ## Running
 
-Run each step for each tab. Steps 3 and 4 skip LegaltechBrokers automatically.
+All agents accept `--campaign <id>` (default: `immigration-uk`) and `--tab <name>`.
 
 ```bash
 # 1. Find companies
-PYTHONPATH="" ./venv/bin/python agents/immigration_search_agent.py --tab LawFirms
-PYTHONPATH="" ./venv/bin/python agents/immigration_search_agent.py --tab Advisors
-PYTHONPATH="" ./venv/bin/python agents/immigration_search_agent.py --tab Charities
-PYTHONPATH="" ./venv/bin/python agents/immigration_search_agent.py --tab LegaltechBrokers
+PYTHONPATH="" ./venv/bin/python agents/search_agent.py --campaign immigration-uk --tab LawFirms
+PYTHONPATH="" ./venv/bin/python agents/search_agent.py --campaign immigration-uk --tab Advisors
 
-# 2. Enrich missing data (fills website, LinkedIn, size, notes for incomplete rows)
-PYTHONPATH="" ./venv/bin/python agents/immigration_enrich_agent.py --tab LawFirms
-PYTHONPATH="" ./venv/bin/python agents/immigration_enrich_agent.py --tab LawFirms --min-rating 8  # only high-value rows
-PYTHONPATH="" ./venv/bin/python agents/immigration_enrich_agent.py --tab LawFirms --max-rows 10   # process subset
+# 2. Enrich missing data
+PYTHONPATH="" ./venv/bin/python agents/enrich_agent.py --campaign immigration-uk --tab LawFirms
+PYTHONPATH="" ./venv/bin/python agents/enrich_agent.py --campaign immigration-uk --tab LawFirms --min-rating 8
+PYTHONPATH="" ./venv/bin/python agents/enrich_agent.py --campaign immigration-uk --tab LawFirms --max-rows 10
 
-# 3. Detect signals (skips LegaltechBrokers automatically)
-PYTHONPATH="" ./venv/bin/python agents/signal_agent.py --tab LawFirms
-PYTHONPATH="" ./venv/bin/python agents/signal_agent.py --tab LawFirms --skip-done      # skip already-scanned rows
-PYTHONPATH="" ./venv/bin/python agents/signal_agent.py --tab LawFirms --retry-empty    # re-scan rows with no signals found
-PYTHONPATH="" ./venv/bin/python agents/signal_agent.py --tab LawFirms --dry-run        # preview without writing
-PYTHONPATH="" ./venv/bin/python agents/signal_agent.py --tab LawFirms --min-rating 8   # only high-value rows
-PYTHONPATH="" ./venv/bin/python agents/signal_agent.py --tab LawFirms --max-rows 10    # cap batch size
-PYTHONPATH="" ./venv/bin/python agents/signal_agent.py --tab LawFirms --only-signals specialist  # rewrite one signal only
+# 3. Detect signals (skips segments with signals_enabled: false)
+PYTHONPATH="" ./venv/bin/python agents/signal_agent.py --campaign immigration-uk --tab LawFirms
+PYTHONPATH="" ./venv/bin/python agents/signal_agent.py --campaign immigration-uk --tab LawFirms --skip-done
+PYTHONPATH="" ./venv/bin/python agents/signal_agent.py --campaign immigration-uk --tab LawFirms --retry-empty
+PYTHONPATH="" ./venv/bin/python agents/signal_agent.py --campaign immigration-uk --tab LawFirms --dry-run
+PYTHONPATH="" ./venv/bin/python agents/signal_agent.py --campaign immigration-uk --tab LawFirms --min-rating 8
+PYTHONPATH="" ./venv/bin/python agents/signal_agent.py --campaign immigration-uk --tab LawFirms --only-signals corporate
 
-# 4. Rate companies (skips LegaltechBrokers automatically; run after signals)
-PYTHONPATH="" ./venv/bin/python agents/immigration_rating_agent.py --tab LawFirms
-PYTHONPATH="" ./venv/bin/python agents/immigration_rating_agent.py --tab LawFirms --force   # re-rate all rows
-PYTHONPATH="" ./venv/bin/python agents/immigration_rating_agent.py --tab LawFirms --llm     # also estimate rows without signals
+# 4. Rate companies (skips segments with rating_enabled: false)
+PYTHONPATH="" ./venv/bin/python agents/rating_agent.py --campaign immigration-uk --tab LawFirms
+PYTHONPATH="" ./venv/bin/python agents/rating_agent.py --campaign immigration-uk --tab LawFirms --force
+PYTHONPATH="" ./venv/bin/python agents/rating_agent.py --campaign immigration-uk --tab LawFirms --llm
 
-# 5. Find contacts → Waalaxy-ready CSV + writes to sheet column T
-PYTHONPATH="" ./venv/bin/python agents/immigration_contact_agent.py --tab LawFirms --output contacts_lawfirms.csv
-PYTHONPATH="" ./venv/bin/python agents/immigration_contact_agent.py --tab Advisors --output contacts_advisors.csv
-PYTHONPATH="" ./venv/bin/python agents/immigration_contact_agent.py --tab LawFirms --min-rating 8    # high-quality only (default)
-PYTHONPATH="" ./venv/bin/python agents/immigration_contact_agent.py --tab LawFirms --max-profiles 2 --limit 50
-PYTHONPATH="" ./venv/bin/python agents/immigration_contact_agent.py --tab LawFirms --dry-run         # preview only
-PYTHONPATH="" ./venv/bin/python agents/immigration_contact_agent.py --tab LawFirms --no-sheet-write  # CSV only, skip col T
-PYTHONPATH="" ./venv/bin/python agents/immigration_contact_agent.py --tab LawFirms --fallback-threshold 2  # LinkedIn fallback if <2 profiles
-PYTHONPATH="" ./venv/bin/python agents/immigration_contact_agent.py --tab LawFirms --force-linkedin-fallback  # attempt fallback regardless
+# 5. Find contacts → Waalaxy-ready CSV + writes to sheet
+PYTHONPATH="" ./venv/bin/python agents/contact_agent.py --campaign immigration-uk --tab LawFirms --output contacts_lawfirms.csv
+PYTHONPATH="" ./venv/bin/python agents/contact_agent.py --campaign immigration-uk --tab LawFirms --min-rating 8
+PYTHONPATH="" ./venv/bin/python agents/contact_agent.py --campaign immigration-uk --tab LawFirms --max-profiles 2 --limit 50
+PYTHONPATH="" ./venv/bin/python agents/contact_agent.py --campaign immigration-uk --tab LawFirms --dry-run
+PYTHONPATH="" ./venv/bin/python agents/contact_agent.py --campaign immigration-uk --tab LawFirms --no-sheet-write
+PYTHONPATH="" ./venv/bin/python agents/contact_agent.py --campaign immigration-uk --tab LawFirms --force-linkedin-fallback
+```
+
+### Set up / reset sheet formatting
+
+```bash
+PYTHONPATH="" ./venv/bin/python sheets_setup.py --campaign immigration-uk
+PYTHONPATH="" ./venv/bin/python sheets_setup.py --campaign immigration-uk --tab LawFirms
 ```
 
 ---
@@ -198,9 +216,7 @@ PYTHONPATH="" ./venv/bin/python agents/immigration_contact_agent.py --tab LawFir
 PYTHONPATH="" ./venv/bin/python -m pytest tests/ -v
 ```
 
-All unit/e2e tests mock Google Sheets and SerpAPI — no real API calls made.
-
-Integration tests (real SerpAPI calls, skipped by default):
+Integration tests (real SerpAPI calls, opt-in):
 ```bash
 PYTEST_RUN_INTEGRATION=1 PYTHONPATH="" ./venv/bin/python -m pytest tests/test_integration_serp.py -v
 ```
@@ -210,33 +226,37 @@ PYTEST_RUN_INTEGRATION=1 PYTHONPATH="" ./venv/bin/python -m pytest tests/test_in
 ## Project structure
 
 ```
-immigrationfinder/
+salesintel/
+├── campaigns/
+│   └── immigration-uk.json         # Campaign config (ICP, signals, segments, region)
+│
 ├── agents/
-│   ├── immigration_search_agent.py   # Step 1 — discover UK immigration companies
-│   ├── immigration_enrich_agent.py   # Step 2 — fill missing info (website, LinkedIn, size, notes)
-│   ├── signal_agent.py               # Step 3 — detect buying signals (SerpAPI + scrape + LLM)
-│   ├── immigration_rating_agent.py   # Step 4 — score 1–10 (rule-based; --llm for provisional estimates)
-│   ├── immigration_contact_agent.py  # Step 5 — find decision-maker contacts → CSV + sheet col T
-│   └── provider.py                   # LLM provider (Vertex AI)
+│   ├── search_agent.py             # Step 1 — discover companies
+│   ├── enrich_agent.py             # Step 2 — fill missing info
+│   ├── signal_agent.py             # Step 3 — detect buying signals
+│   ├── rating_agent.py             # Step 4 — score 1–10
+│   ├── contact_agent.py            # Step 5 — find decision-maker contacts
+│   └── provider.py                 # LLM provider (Vertex AI / Anthropic)
 │
 ├── tools/
-│   ├── serp_tool.py                  # SerpAPI search with disk caching
-│   ├── sheets_tool.py                # Append new company rows (with cross-tab dedup)
-│   ├── sheets_read_tool.py           # Read company rows
-│   ├── sheets_update_info_tool.py    # Write enriched info fields (website, LinkedIn, size, etc.)
-│   └── sheets_update_signal_tool.py  # Write signal results to sheet
+│   ├── serp_tool.py                # SerpAPI search with disk caching
+│   ├── sheets_tool.py              # Append new company rows
+│   ├── sheets_read_tool.py         # Read company rows
+│   ├── sheets_update_info_tool.py  # Write enriched info fields
+│   └── sheets_update_signal_tool.py# Write signal results
+│
+├── api/
+│   └── main.py                     # FastAPI backend for campaign CRUD
+│
+├── frontend/                       # React campaign editor UI
+│   ├── src/
+│   │   ├── App.tsx
+│   │   ├── types.ts
+│   │   └── components/
+│   └── package.json
 │
 ├── tests/
-│   ├── test_immigration_search_agent.py
-│   ├── test_immigration_enrich_agent.py
-│   ├── test_immigration_contact_agent.py
-│   ├── test_sheets_append_tool.py
-│   ├── test_sheets_update_signal_tool.py
-│   ├── test_sheets_update_tool.py
-│   ├── test_e2e_real_companies.py    # Mocked e2e tests for all 4 tabs
-│   └── test_integration_serp.py      # Real SerpAPI integration tests (opt-in)
-│
-├── immigration_sheets_setup.py       # Create/reformat sheet tabs with styling
-├── config.py
-└── melt2.json                        # Google service account key (not in repo)
+├── sheets_setup.py                 # Create/reformat sheet tabs
+├── campaign.py                     # Campaign config schema (Pydantic)
+└── melt2.json                      # Google service account key (not in repo)
 ```

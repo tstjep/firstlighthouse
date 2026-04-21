@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Campaigns — salesintel{% endblock %}
+{% block page_title %}Your campaigns{% endblock %}
+{% block page_subtitle %}<p class="subtitle">Set up your ICP, signals, and segments — then run the agents to fill results.</p>{% endblock %}
+{% block page_actions %}<a href="/campaigns/new" role="button" class="btn-sm">+ New campaign</a>{% endblock %}
+
+{% block content %}
+{% if campaigns %}
+<div class="campaign-grid">
+  {% for c in campaigns %}
+  <div class="campaign-card">
+    <h3>{{ c.name }}</h3>
+    <p class="meta">
+      {{ c.segments | length }} segment{{ 's' if c.segments | length != 1 else '' }}
+      &nbsp;·&nbsp;
+      {{ c.signals | length }} signal{{ 's' if c.signals | length != 1 else '' }}
+      {% if c.region.label %}&nbsp;·&nbsp; {{ c.region.label }}{% endif %}
+    </p>
+    {% if c.product_context %}
+    <p class="excerpt">{{ c.product_context }}</p>
+    {% endif %}
+    <div class="actions">
+      <a href="/campaigns/{{ c.id }}/run" role="button">▶ Run</a>
+      <a href="/campaigns/{{ c.id }}/results" role="button" class="secondary outline">Results</a>
+      <a href="/campaigns/{{ c.id }}/edit" role="button" class="secondary outline">Edit</a>
+      <form method="post" action="/campaigns/{{ c.id }}/delete" style="margin: 0; margin-left: auto;"
+            onsubmit="return confirm('Delete {{ c.name }}? This cannot be undone.')">
+        <button type="submit" class="btn-sm btn-danger secondary outline">Delete</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+  <a href="/campaigns/new" class="new-card">+ New campaign</a>
+</div>
+{% else %}
+<div style="text-align: center; padding: 5rem 2rem;">
+  <div style="font-size: 3rem; margin-bottom: 1rem;">✦</div>
+  <h2 style="color: var(--brand); margin-bottom: 0.5rem;">No campaigns yet</h2>
+  <p style="color: #8896b0; margin-bottom: 2rem;">Create your first campaign to start finding companies.</p>
+  <a href="/campaigns/new" role="button">+ New campaign</a>
+</div>
+{% endif %}
+{% endblock %}

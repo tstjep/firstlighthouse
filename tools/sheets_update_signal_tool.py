@@ -1,11 +1,11 @@
-"""Google Sheets signal-update tool for immigration lead agents.
+"""Google Sheets signal-update tool.
 
-Updates the five signal columns (Yes/No + source) for a specific company
-row identified by its 1-based row index.
+Updates signal columns (Yes/No + source) for a company row.
+Signal column layout is dynamic — derived from the campaign config.
 
-Immigration sheet column mapping (A:S):
+Fixed columns (A–I):
   A  Company Name
-  B  Comment LawFairy
+  B  Internal comment
   C  Rating
   D  Notes
   E  Website
@@ -13,11 +13,13 @@ Immigration sheet column mapping (A:S):
   G  Size
   H  HQ Location
   I  Date Added
-  J  CorporateImmigration Signal  |  K  Source
-  L  Specialist Signal            |  M  Source
-  N  MultiVisa Signal             |  O  Source
-  P  HighVolume Signal            |  Q  Source
-  R  Growth Signal                |  S  Source
+
+Signal columns start at J, two per signal (bool + source):
+  J  Signal 1   |  K  Source 1
+  L  Signal 2   |  M  Source 2
+  ...
+
+Contacts column follows the last signal pair.
 """
 
 from typing import Any
@@ -29,23 +31,26 @@ from nanobot.agent.tools.base import Tool
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
-SIGNAL_COLS = {
-    "corporate":  ("J", "K"),
-    "specialist":       ("L", "M"),
-    "multivisa":  ("N", "O"),
-    "highvolume": ("P", "Q"),
-    "growth":     ("R", "S"),
-}
-
-VALID_SIGNALS = sorted(SIGNAL_COLS)
-
 
 class SheetsUpdateSignalTool(Tool):
-    """Update one immigration signal for a company row in the lead tracker."""
+    """Update one buying signal for a company row in the lead tracker."""
 
-    def __init__(self, spreadsheet_id: str, credentials_file: str, sheet_name: str = "LawFirms"):
+    def __init__(
+        self,
+        spreadsheet_id: str,
+        credentials_file: str,
+        signal_cols: dict[str, tuple[str, str]],
+        sheet_name: str = "LawFirms",
+    ):
+        """
+        Args:
+            signal_cols: {signal_key: (bool_col_letter, source_col_letter)}
+                         e.g. {"corporate": ("J", "K"), "specialist": ("L", "M")}
+                         Derived from campaign.signal_cols().
+        """
         self._spreadsheet_id = spreadsheet_id
         self._credentials_file = credentials_file
+        self._signal_cols = signal_cols
         self._sheet_name = sheet_name
         self._service = None
 
@@ -58,18 +63,21 @@ class SheetsUpdateSignalTool(Tool):
         return self._service
 
     @property
+    def valid_signals(self) -> list[str]:
+        return sorted(self._signal_cols)
+
+    @property
     def name(self) -> str:
         return "sheets_update_signal"
 
     @property
     def description(self) -> str:
         return (
-            "Update one immigration buying signal for a company row in the Google Sheet. "
+            "Update one buying signal for a company row in the Google Sheet. "
             "Provide the row_index (from sheets_read_companies), the signal name, "
             "whether it was detected (True/False), and a short source note — the "
             "title or snippet where the signal was found (or 'not found' if False). "
-            "Today's date is written automatically. "
-            f"Signal names: {', '.join(repr(s) for s in VALID_SIGNALS)}."
+            f"Signal names: {', '.join(repr(s) for s in self.valid_signals)}."
         )
 
     @property
@@ -84,19 +92,12 @@ class SheetsUpdateSignalTool(Tool):
                 },
                 "signal": {
                     "type": "string",
-                    "enum": VALID_SIGNALS,
-                    "description": (
-                        "Which signal to update: "
-                        "'corporate' = sponsor licence / skilled worker / corporate clients; "
-                        "'specialist' = immigration is the firm's primary or sole practice area; "
-                        "'multivisa' = handles 3+ visa types; "
-                        "'highvolume' = large team or many clients mentioned; "
-                        "'growth' = hiring / new office / expanding."
-                    ),
+                    "enum": self.valid_signals,
+                    "description": "Which signal to update.",
                 },
                 "detected": {
                     "type": "boolean",
-                    "description": "True if the signal was found in search results, False otherwise",
+                    "description": "True if the signal was found in search results, False otherwise.",
                 },
                 "source": {
                     "type": "string",
@@ -117,15 +118,15 @@ class SheetsUpdateSignalTool(Tool):
         source: str = "",
         **kwargs: Any,
     ) -> str:
-        if signal not in SIGNAL_COLS:
+        if signal not in self._signal_cols:
             return (
                 f"[sheets_update_signal error] Unknown signal {signal!r}. "
-                f"Valid signals: {VALID_SIGNALS}"
+                f"Valid: {self.valid_signals}"
             )
         if row_index < 2:
             return f"[sheets_update_signal error] row_index must be >= 2 (got {row_index})"
 
-        bool_col, source_col = SIGNAL_COLS[signal]
+        bool_col, source_col = self._signal_cols[signal]
         value = "Yes" if detected else "No"
         tab = self._sheet_name
 

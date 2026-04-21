@@ -5,3 +5,7 @@ httpx
 linkedin-api
 python-dotenv
 pytest
+fastapi
+jinja2
+python-multipart
+uvicorn
