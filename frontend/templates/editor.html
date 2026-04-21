@@ -49,10 +49,6 @@
     <div>
       <span style="display:flex; align-items:baseline; justify-content:space-between; gap:0.5rem; margin-bottom:0.35rem;">
         <span style="font-size:0.9rem; font-weight:600; color:var(--text);">ICP — who are you targeting?</span>
-        <button type="button" id="suggestBtn" onclick="fetchSuggestions()"
-                class="btn-ai btn-sm" style="display:none;">
-          ✦ Suggest signals
-        </button>
       </span>
 
       <!-- Structured ICP builder -->
@@ -74,7 +70,7 @@
             </div>
             <div style="flex:1; display:flex; flex-direction:column;">
               <input id="icp_product" type="text" placeholder="HRly, a cloud HR platform" style="border:none; background:transparent; padding:0.5rem 0.75rem 0.25rem; font-size:0.82rem; outline:none;" oninput="rebuildIcp(); updateHint(this)">
-              <span class="icp-hint">e.g. HRly, a cloud HR platform</span>
+              <span class="icp-hint">Product name + one-line description of what it does</span>
             </div>
           </div>
           <div style="display:flex; align-items:stretch; gap:0; border-bottom:1px solid #e8edf5;">
@@ -83,8 +79,18 @@
               <span style="font-size:0.62rem; color:#a0aec8; font-style:italic;">your target market</span>
             </div>
             <div style="flex:1; display:flex; flex-direction:column;">
-              <input id="icp_target" type="text" placeholder="SMBs in professional services, 20–200 staff" style="border:none; background:transparent; padding:0.5rem 0.75rem 0.25rem; font-size:0.82rem; outline:none;" oninput="rebuildIcp(); updateHint(this)">
-              <span class="icp-hint">e.g. SMBs in professional services, 20–200 staff</span>
+              <input id="icp_target" type="text" placeholder="SMBs in professional services" style="border:none; background:transparent; padding:0.5rem 0.75rem 0.25rem; font-size:0.82rem; outline:none;" oninput="rebuildIcp(); updateHint(this)">
+              <span class="icp-hint">Industry, company size, and any key qualifier that defines a good fit</span>
+            </div>
+          </div>
+          <div style="display:flex; align-items:stretch; gap:0; border-bottom:1px solid #e8edf5;">
+            <div style="flex-shrink:0; width:145px; padding:0.45rem 0.75rem; background:#eef3fd; display:flex; flex-direction:column; justify-content:center; gap:1px;">
+              <span style="font-size:0.75rem; font-weight:600; color:#4f8ef7;">Company size</span>
+              <span style="font-size:0.62rem; color:#a0aec8; font-style:italic;">headcount range</span>
+            </div>
+            <div style="flex:1; display:flex; flex-direction:column;">
+              <input id="icp_size" type="text" placeholder="20–200 employees" style="border:none; background:transparent; padding:0.5rem 0.75rem 0.25rem; font-size:0.82rem; outline:none;" oninput="rebuildIcp(); updateHint(this)">
+              <span class="icp-hint">Sweet spot headcount — helps the AI skip companies that are too big or too small</span>
             </div>
           </div>
           <div style="display:flex; align-items:stretch; gap:0; border-bottom:1px solid #e8edf5;">
@@ -104,7 +110,7 @@
             </div>
             <div style="flex:1; display:flex; flex-direction:column;">
               <input id="icp_pain" type="text" placeholder="manual HR admin and staying compliant with Swiss labour law" style="border:none; background:transparent; padding:0.5rem 0.75rem 0.25rem; font-size:0.82rem; outline:none;" oninput="rebuildIcp(); updateHint(this)">
-              <span class="icp-hint">e.g. manual HR admin and staying compliant with Swiss labour law</span>
+              <span class="icp-hint">The problem they feel every week — be specific, not generic</span>
             </div>
           </div>
         </div>
@@ -118,7 +124,7 @@
             </div>
             <div style="flex:1; display:flex; flex-direction:column;">
               <input id="icp_signal" type="text" placeholder="actively hiring an HR manager, scaling headcount" style="border:none; background:transparent; padding:0.5rem 0.75rem 0.25rem; font-size:0.82rem; outline:none;" oninput="rebuildIcp(); updateHint(this)">
-              <span class="icp-hint">e.g. actively hiring an HR manager, scaling headcount</span>
+              <span class="icp-hint">Observable actions that show they need your product right now</span>
             </div>
           </div>
           <div style="display:flex; align-items:stretch; gap:0; border-bottom:1px solid #e8edf5;">
@@ -128,7 +134,7 @@
             </div>
             <div style="flex:1; display:flex; flex-direction:column;">
               <input id="icp_role" type="text" placeholder="CEO, head of HR" style="border:none; background:transparent; padding:0.5rem 0.75rem 0.25rem; font-size:0.82rem; outline:none;" oninput="rebuildIcp(); updateHint(this)">
-              <span class="icp-hint">e.g. CEO, head of HR</span>
+              <span class="icp-hint">Who signs the contract and controls the budget</span>
             </div>
           </div>
           <div style="display:flex; align-items:stretch; gap:0;">
@@ -138,7 +144,7 @@
             </div>
             <div style="flex:1; display:flex; flex-direction:column;">
               <input id="icp_user" type="text" placeholder="HR manager, office manager" style="border:none; background:transparent; padding:0.5rem 0.75rem 0.25rem; font-size:0.82rem; outline:none;" oninput="rebuildIcp(); updateHint(this)">
-              <span class="icp-hint">e.g. HR manager, office manager</span>
+              <span class="icp-hint">Who uses it daily and will champion it internally</span>
             </div>
           </div>
         </div>
@@ -152,7 +158,7 @@
             </div>
             <div style="flex:1; display:flex; flex-direction:column;">
               <input id="icp_options" type="text" placeholder="spreadsheets, BambooHR, nothing formal" style="border:none; background:transparent; padding:0.5rem 0.75rem 0.25rem; font-size:0.82rem; outline:none;" oninput="rebuildIcp(); updateHint(this)">
-              <span class="icp-hint">e.g. spreadsheets, BambooHR, nothing formal</span>
+              <span class="icp-hint">Tools or approaches they compare you against — including "nothing"</span>
             </div>
           </div>
           <div style="display:flex; align-items:stretch; gap:0;">
@@ -162,7 +168,7 @@
             </div>
             <div style="flex:1; display:flex; flex-direction:column;">
               <input id="icp_skip" type="text" placeholder="fewer than 10 staff, enterprise on SAP/Workday, government" style="border:none; background:transparent; padding:0.5rem 0.75rem 0.25rem; font-size:0.82rem; outline:none;" oninput="rebuildIcp(); updateHint(this)">
-              <span class="icp-hint">e.g. fewer than 10 staff, enterprise on SAP/Workday, government</span>
+              <span class="icp-hint">Deal-breakers — too small, locked into a competitor, wrong segment</span>
             </div>
           </div>
         </div>
@@ -177,20 +183,6 @@
 
     </div>
 
-    <!-- AI suggestion panel (hidden until suggestions arrive) -->
-    <div id="suggestionPanel" style="display:none; margin-top:0.5rem; border:1px solid #b0c4de; border-radius:var(--radius); background:#f7f9ff; padding:1.1rem 1.25rem;">
-      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.85rem;">
-        <span style="font-size:0.85rem; font-weight:700; color:var(--brand);">✦ AI signal suggestions</span>
-        <button type="button" onclick="dismissSuggestions()"
-                class="btn-ghost btn-sm">dismiss ×</button>
-      </div>
-      <p style="font-size:0.78rem; color:#6b7a99; margin:0 0 1rem;">
-        Based on your ICP. Review each suggestion — accept what fits, skip the rest.
-        You can edit any accepted signal before saving.
-      </p>
-      <div id="suggestionCards" style="display:flex; flex-direction:column; gap:0.65rem;"></div>
-      <div id="suggestError" style="display:none; font-size:0.82rem; color:var(--danger); margin-top:0.5rem;"></div>
-    </div>
   </div>
 
   <!-- ── 2. REGION ──────────────────────────────────────────────────────── -->
@@ -242,88 +234,15 @@
     </details>
   </div>
 
-  <!-- ── 3. CONTACTS ───────────────────────────────────────────────────── -->
-  <div class="section" id="contacts-section">
-    <div class="section-header">
-      <h2>Contacts to find</h2>
-    </div>
-
-    <div>
-      <span style="display:flex; align-items:baseline; justify-content:space-between; gap:0.5rem; margin-bottom:0.35rem;">
-        <span style="font-size:0.835rem; font-weight:600; color:#374151;">Roles to target</span>
-        <button type="button"
-                onclick="fetchRoleSuggestions()"
-                id="suggestRolesBtn"
-                class="btn-ai btn-sm">
-          ✦ Suggest roles
-        </button>
-      </span>
-
-      <!-- buyer / user legend -->
-      <div style="display:flex; gap:1rem; font-size:0.72rem; margin-bottom:0.4rem; color:#6b7a99;">
-        <span><span style="display:inline-block; width:9px; height:9px; border-radius:2px; background:#4f8ef7; margin-right:3px; vertical-align:middle;"></span><strong>Buyer</strong> — approves / signs</span>
-        <span><span style="display:inline-block; width:9px; height:9px; border-radius:2px; background:#22c27a; margin-right:3px; vertical-align:middle;"></span><strong>User</strong> — day-to-day champion</span>
-      </div>
-
-      <textarea name="contact.roles"
-                id="contactRoles"
-                rows="2"
-                placeholder="Managing Partner, Head of HR, Partner, Director">{{ campaign.contact.roles | join(", ") }}</textarea>
-
-      <!-- role suggestion panel -->
-      <div id="roleSuggestionPanel"
-           style="display:none; margin-top:0.5rem; border:1px solid #b0c4de; border-radius:var(--radius); background:#f7f9ff; padding:1rem 1.15rem;">
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.5rem;">
-          <span style="font-size:0.85rem; font-weight:700; color:var(--brand);">✦ Suggested roles</span>
-          <button type="button" onclick="dismissRolePanel()"
-                  class="btn-ghost btn-sm">dismiss ×</button>
-        </div>
-        <p style="font-size:0.78rem; color:#6b7a99; margin:0 0 0.75rem;">
-          Click a role to add it. <strong style="color:#4f8ef7;">Blue = buyer</strong>, <strong style="color:#22c27a;">green = user</strong>.
-        </p>
-        <div id="roleSuggestionCards" style="display:flex; flex-direction:column; gap:0.5rem;"></div>
-        <div id="roleSuggestionError" style="display:none; font-size:0.82rem; color:var(--danger); margin-top:0.5rem;"></div>
-      </div>
-
-      <small class="help" style="display:block; margin-top:0.3rem;">
-        Comma-separated. The contact finder searches LinkedIn for these roles at top-rated companies.
-      </small>
-    </div>
-  </div>
-
-  <!-- ── 4. SEARCH QUERIES ──────────────────────────────────────────────── -->
-  <div class="section" id="search-section">
-    <div class="section-header">
-      <h2>Search queries</h2>
-    </div>
-    <p class="help" style="margin-bottom:1rem;">
-      Queries used to discover companies. Use a separate campaign for a fundamentally different market — e.g. a different country or company type.
-    </p>
-    {{ textarea_field(
-        "Domain queries (site:.co.uk searches)",
-        "search.tld_queries",
-        campaign.search.tld_queries | join("\n"),
-        rows=5,
-        placeholder='site:.co.uk "immigration solicitor"',
-        help="One query per line. These search specifically within the target TLD.",
-        mono=True
-    ) }}
-    {{ textarea_field(
-        "Broader search queries",
-        "search.extra_queries",
-        campaign.search.extra_queries | join("\n"),
-        rows=5,
-        placeholder='"immigration solicitor" London',
-        help="One per line. Used for city-based, LinkedIn, and directory searches.",
-        mono=True
-    ) }}
-  </div>
-
-  <!-- ── 4. SIGNALS ─────────────────────────────────────────────────────── -->
+  <!-- ── 3. SIGNALS ─────────────────────────────────────────────────────── -->
   <div class="section" id="signals-section">
     <div class="section-header">
       <h2>Buying signals</h2>
       <div style="display:flex; gap:0.4rem;">
+        <button type="button" id="suggestBtn" onclick="fetchSuggestions()"
+                class="btn-ai btn-sm" style="display:none;">
+          ✦ Suggest from ICP
+        </button>
         <button type="button" id="suggestMoreBtn" onclick="fetchMoreSuggestions()" class="btn-ai btn-sm">
           ✦ Suggest more
         </button>
@@ -334,6 +253,21 @@
     <p class="help" style="margin-bottom: 1rem;">
       Signals are clues the AI looks for on each company's website. Positive points boost their score; negative points down-rank or exclude them.
     </p>
+
+    <!-- AI "suggest from ICP" panel -->
+    <div id="suggestionPanel" style="display:none; margin-bottom:1rem; border:1px solid #b0c4de; border-radius:var(--radius); background:#f7f9ff; padding:1.1rem 1.25rem;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.85rem;">
+        <span style="font-size:0.85rem; font-weight:700; color:var(--brand);">✦ AI signal suggestions</span>
+        <button type="button" onclick="dismissSuggestions()"
+                class="btn-ghost btn-sm">dismiss ×</button>
+      </div>
+      <p style="font-size:0.78rem; color:#6b7a99; margin:0 0 1rem;">
+        Based on your ICP. Review each suggestion — accept what fits, skip the rest.
+        You can edit any accepted signal before saving.
+      </p>
+      <div id="suggestionCards" style="display:flex; flex-direction:column; gap:0.65rem;"></div>
+      <div id="suggestError" style="display:none; font-size:0.82rem; color:var(--danger); margin-top:0.5rem;"></div>
+    </div>
 
     <!-- AI "suggest more" panel -->
     <div id="moreSuggestionPanel" style="display:none; margin-bottom:1rem; border:1px solid #b0c4de; border-radius:var(--radius); background:#f7f9ff; padding:1.1rem 1.25rem;">
@@ -409,6 +343,83 @@
         No signals yet. Add one to define what a good prospect looks like.
       </div>
     {% endif %}
+  </div>
+
+  <!-- ── 4. CONTACTS ───────────────────────────────────────────────────── -->
+  <div class="section" id="contacts-section">
+    <div class="section-header">
+      <h2>Contacts to find</h2>
+    </div>
+
+    <div>
+      <span style="display:flex; align-items:baseline; justify-content:space-between; gap:0.5rem; margin-bottom:0.35rem;">
+        <span style="font-size:0.835rem; font-weight:600; color:#374151;">Roles to target</span>
+        <button type="button"
+                onclick="fetchRoleSuggestions()"
+                id="suggestRolesBtn"
+                class="btn-ai btn-sm">
+          ✦ Suggest roles
+        </button>
+      </span>
+
+      <!-- buyer / user legend -->
+      <div style="display:flex; gap:1rem; font-size:0.72rem; margin-bottom:0.4rem; color:#6b7a99;">
+        <span><span style="display:inline-block; width:9px; height:9px; border-radius:2px; background:#4f8ef7; margin-right:3px; vertical-align:middle;"></span><strong>Buyer</strong> — approves / signs</span>
+        <span><span style="display:inline-block; width:9px; height:9px; border-radius:2px; background:#22c27a; margin-right:3px; vertical-align:middle;"></span><strong>User</strong> — day-to-day champion</span>
+      </div>
+
+      <textarea name="contact.roles"
+                id="contactRoles"
+                rows="2"
+                placeholder="Managing Partner, Head of HR, Partner, Director">{{ campaign.contact.roles | join(", ") }}</textarea>
+
+      <!-- role suggestion panel -->
+      <div id="roleSuggestionPanel"
+           style="display:none; margin-top:0.5rem; border:1px solid #b0c4de; border-radius:var(--radius); background:#f7f9ff; padding:1rem 1.15rem;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.5rem;">
+          <span style="font-size:0.85rem; font-weight:700; color:var(--brand);">✦ Suggested roles</span>
+          <button type="button" onclick="dismissRolePanel()"
+                  class="btn-ghost btn-sm">dismiss ×</button>
+        </div>
+        <p style="font-size:0.78rem; color:#6b7a99; margin:0 0 0.75rem;">
+          Click a role to add it. <strong style="color:#4f8ef7;">Blue = buyer</strong>, <strong style="color:#22c27a;">green = user</strong>.
+        </p>
+        <div id="roleSuggestionCards" style="display:flex; flex-direction:column; gap:0.5rem;"></div>
+        <div id="roleSuggestionError" style="display:none; font-size:0.82rem; color:var(--danger); margin-top:0.5rem;"></div>
+      </div>
+
+      <small class="help" style="display:block; margin-top:0.3rem;">
+        Comma-separated. The contact finder searches LinkedIn for these roles at top-rated companies.
+      </small>
+    </div>
+  </div>
+
+  <!-- ── 4. SEARCH QUERIES ──────────────────────────────────────────────── -->
+  <div class="section" id="search-section">
+    <div class="section-header">
+      <h2>Search queries</h2>
+    </div>
+    <p class="help" style="margin-bottom:1rem;">
+      Queries used to discover companies. Use a separate campaign for a fundamentally different market — e.g. a different country or company type.
+    </p>
+    {{ textarea_field(
+        "Domain queries (site:.co.uk searches)",
+        "search.tld_queries",
+        campaign.search.tld_queries | join("\n"),
+        rows=5,
+        placeholder='site:.co.uk "immigration solicitor"',
+        help="One query per line. These search specifically within the target TLD.",
+        mono=True
+    ) }}
+    {{ textarea_field(
+        "Broader search queries",
+        "search.extra_queries",
+        campaign.search.extra_queries | join("\n"),
+        rows=5,
+        placeholder='"immigration solicitor" London',
+        help="One per line. Used for city-based, LinkedIn, and directory searches.",
+        mono=True
+    ) }}
   </div>
 
   <!-- ── 5. RATING ──────────────────────────────────────────────────────── -->
@@ -905,6 +916,7 @@ function rebuildIcp() {
   const fields = [
     { id: 'icp_product', prefix: 'We sell ',                            suffix: '' },
     { id: 'icp_target',  prefix: ' to ',                                suffix: '' },
+    { id: 'icp_size',    prefix: ', ',                                  suffix: '' },
     { id: 'icp_region',  prefix: ' in ',                                suffix: '.' },
     { id: 'icp_pain',    prefix: ' Their pain point is ',               suffix: '.' },
     { id: 'icp_signal',  prefix: ' A buying signal is when they ',      suffix: '.' },
@@ -957,7 +969,8 @@ function updateHint(input) {
 // Fill all ICP builder fields with the HRly example values
 const ICP_EXAMPLES = {
   icp_product: 'HRly, a cloud HR platform',
-  icp_target:  'SMBs in professional services, 20–200 staff',
+  icp_target:  'SMBs in professional services',
+  icp_size:    '20–200 employees',
   icp_region:  'Switzerland',
   icp_pain:    'manual HR admin and staying compliant with Swiss labour law',
   icp_signal:  'actively hiring an HR manager, scaling headcount',
