@@ -2,11 +2,21 @@
 
 Automatically builds ranked lists of target companies in any market — so you know exactly who to reach out to first.
 
-Built on **AI agents** ([nanobot](https://github.com/nanobot-ai/nanobot)): each step is an autonomous agent that runs searches, reasons over results, and decides what to write — so it handles ambiguous company data, missing websites, and partial information the way a researcher would, not with brittle rules.
+---
 
-Works for any stage of go-to-market:
+### The problem this solves
 
-- **0→1 sales** — startups who need to find and prioritise their first paying customers without a dedicated sales team or expensive data tools
+The 0→1 stage is the hardest part of building a company — and most founders underestimate it. You have a product and a rough sense of who might want it, but no sales team, no existing pipeline, and limited market research. You don't yet know which types of companies are the best fit, which signals separate a hot lead from a waste of time, or who inside a company is actually worth talking to.
+
+Most founders respond by either doing nothing (waiting for word of mouth) or doing too much (manually researching hundreds of companies in spreadsheets). Both approaches stall.
+
+salesintel is built specifically for this stage. It guides you through the process of defining your ICP, identifying what a good fit looks like in practice, and turning that into a structured, prioritised list of real companies and contacts — without requiring sales experience or expensive data subscriptions. The tool is deliberately limited in scope: it doesn't try to run your outreach, manage your pipeline, or predict churn. It does one thing — helps you figure out *who* to talk to and *why* — and gets out of the way.
+
+Built on **AI agents** ([nanobot](https://github.com/nanobot-ai/nanobot)): each step is an autonomous agent that runs searches, reasons over results, and decides what to write — so it handles ambiguous company data, missing websites, and partial information the way a human researcher would, not with brittle rules.
+
+Works across go-to-market stages:
+
+- **0→1 sales** — founders who need to find and prioritise their first customers, without a sales team or expensive data tools
 - **User research** — founders and PMs who need a pool of warm contacts for discovery interviews
 - **Outbound at scale** — growth teams building segmented, signal-qualified prospect lists for sequenced outreach
 
