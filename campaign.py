@@ -28,10 +28,10 @@ _VALID_EXPORT_FORMATS = {"waalaxy", "lemlist", "csv"}
 # ── Sub-models ─────────────────────────────────────────────────────────────────
 
 class Region(BaseModel):
-    label:            str = "United Kingdom"
-    country_code:     str = "gb"          # SerpAPI gl= param
-    country_restrict: str = "countryGB"   # SerpAPI cr= param
-    tld:              str = "co.uk"       # preferred TLD for site: queries
+    label:            str = "Switzerland"
+    country_code:     str = "ch"
+    country_restrict: str = "countryCH"
+    tld:              str = "ch"
 
 
 class SearchConfig(BaseModel):
