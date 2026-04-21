@@ -93,8 +93,8 @@
               <span style="font-size:0.62rem; color:#a0aec8; font-style:italic;">where you sell</span>
             </div>
             <div style="flex:1; display:flex; flex-direction:column;">
-              <input id="icp_region" type="text" placeholder="Switzerland / CH" style="border:none; background:transparent; padding:0.5rem 0.75rem 0.25rem; font-size:0.82rem; outline:none;" oninput="rebuildIcp(); updateHint(this); applyRegionFromIcp(this.value)">
-              <span class="icp-hint">e.g. Switzerland / CH</span>
+              <input id="icp_region" type="text" placeholder="Switzerland" style="border:none; background:transparent; padding:0.5rem 0.75rem 0.25rem; font-size:0.82rem; outline:none;" oninput="rebuildIcp(); updateHint(this); applyRegionFromIcp(this.value)">
+              <span class="icp-hint">e.g. Switzerland — or DACH for Germany, Austria &amp; Switzerland</span>
             </div>
           </div>
           <div style="display:flex; align-items:stretch; gap:0; border-bottom:1px solid #e8edf5;">
@@ -963,7 +963,7 @@ function updateHint(input) {
 const ICP_EXAMPLES = {
   icp_product: 'HRly, a cloud HR platform',
   icp_target:  'SMBs in professional services, 20–200 staff',
-  icp_region:  'Switzerland / CH',
+  icp_region:  'Switzerland',
   icp_pain:    'manual HR admin and staying compliant with Swiss labour law',
   icp_signal:  'actively hiring an HR manager or scaling headcount',
   icp_role:    'CEO or head of HR',
