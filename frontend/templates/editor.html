@@ -55,18 +55,44 @@
 
     {{ field("Campaign name", "name", campaign.name, placeholder="e.g. UK Immigration Law Firms", required=True) }}
 
-    <label>
-      <span style="display:flex; align-items:baseline; justify-content:space-between; gap:0.5rem;">
-        <span>ICP — who are you targeting and why?</span>
+    <div>
+      <span style="display:flex; align-items:baseline; justify-content:space-between; gap:0.5rem; margin-bottom:0.35rem;">
+        <span style="font-size:0.9rem; font-weight:600; color:var(--text);">ICP — who are you targeting?</span>
         <button type="button" id="suggestBtn" onclick="fetchSuggestions()"
                 style="font-size:0.72rem; padding:0.2rem 0.6rem; border-radius:4px; border:1px solid #b0c4de; background:var(--brand-light); color:var(--brand); cursor:pointer; font-weight:600; flex-shrink:0; white-space:nowrap;">
           ✦ Suggest signals
         </button>
       </span>
-      <textarea name="product_context" id="productContext" rows="3"
-                placeholder="e.g. We sell LawFairy, an immigration case management platform, to UK immigration law firms. Our ideal customer is a firm with 5–100 staff that handles corporate immigration and sponsor licences.">{{ campaign.product_context }}</textarea>
-      <small class="help">Write it the way you'd explain your ICP to a new colleague. This is injected directly into AI prompts.</small>
-    </label>
+
+      <!-- ICP legend: what the colours mean -->
+      <div style="display:flex; flex-wrap:wrap; gap:0.4rem 1rem; margin-bottom:0.55rem; font-size:0.72rem;">
+        <span><span style="display:inline-block; width:9px; height:9px; border-radius:2px; background:#4f8ef7; margin-right:3px; vertical-align:middle;"></span><strong>Core</strong> — who &amp; what you sell</span>
+        <span><span style="display:inline-block; width:9px; height:9px; border-radius:2px; background:#22c27a; margin-right:3px; vertical-align:middle;"></span><strong>Buying readiness</strong> — when they're likely to buy</span>
+        <span><span style="display:inline-block; width:9px; height:9px; border-radius:2px; background:#f5a623; margin-right:3px; vertical-align:middle;"></span><strong>Exclusion</strong> — who to skip</span>
+      </div>
+
+      <!-- Annotated template (shown when field is empty, hidden once user types) -->
+      {% if not campaign.product_context %}
+      <div id="icpTemplate" style="border:1px solid #d0d8e8; border-radius:6px; padding:0.75rem 1rem; font-size:0.8rem; line-height:1.8; background:#f8fafd; margin-bottom:0.5rem; cursor:text;" onclick="activateIcpTextarea()">
+        <div><span style="color:#4f8ef7;">We sell <em>[product name]</em> to <em>[target industry / company type]</em></span> <span style="color:#4f8ef7;">with roughly <em>[ideal company size]</em> employees.</span></div>
+        <div><span style="color:#4f8ef7;">The main pain point we solve is <em>[pain point]</em>.</span></div>
+        <div style="margin-top:0.3rem;"><span style="color:#22c27a;">A strong buying signal is when a company <em>[buying trigger — e.g. recently hired their first X, just raised funding, opened a new office]</em>.</span></div>
+        <div><span style="color:#22c27a;">The decision maker is typically the <em>[decision maker role]</em>.</span></div>
+        <div style="margin-top:0.3rem;"><span style="color:#f5a623;">Skip companies that <em>[exclusion criteria — e.g. have more than 500 staff, are a franchise, already use a competitor]</em>.</span></div>
+        <div style="margin-top:0.6rem; color:#9aa5bc; font-size:0.72rem;">→ Click to edit &nbsp;·&nbsp; You can start broad and sharpen over time — even a single sentence helps.</div>
+      </div>
+      {% endif %}
+
+      <textarea name="product_context" id="productContext" rows="5"
+                placeholder="e.g. We sell LawFairy to UK immigration law firms with 5–100 staff. They handle corporate immigration and sponsor licences. A buying signal is hiring a new immigration solicitor or opening a second office. Skip firms with fewer than 3 staff or that only do private client work."
+                style="{% if not campaign.product_context %}display:none;{% endif %}"
+                >{{ campaign.product_context }}</textarea>
+
+      <small class="help" style="margin-top:0.3rem; display:block;">
+        The more specific you are, the better the AI signal suggestions and search results.
+        <span style="color:#9aa5bc;">Starting broad is fine — you can always refine later.</span>
+      </small>
+    </div>
 
     <!-- AI suggestion panel (hidden until suggestions arrive) -->
     <div id="suggestionPanel" style="display:none; margin-top:0.5rem; border:1px solid #b0c4de; border-radius:var(--radius); background:#f7f9ff; padding:1.1rem 1.25rem;">
@@ -394,6 +420,19 @@
 </form>
 
 <script>
+// ── ICP template → textarea transition ────────────────────────────────────────
+
+function activateIcpTextarea() {
+  const tmpl = document.getElementById('icpTemplate');
+  const ta   = document.getElementById('productContext');
+  if (tmpl) tmpl.style.display = 'none';
+  ta.style.display = '';
+  ta.focus();
+}
+
+// If the user already has content (edit mode), textarea is shown directly via
+// the inline style set in the template. No action needed on load.
+
 // ── Signal suggestions ────────────────────────────────────────────────────────
 
 const campaignId = {{ campaign.id | tojson }};
@@ -401,6 +440,7 @@ const campaignId = {{ campaign.id | tojson }};
 async function fetchSuggestions() {
   const icp = document.getElementById('productContext').value.trim();
   if (!icp) {
+    activateIcpTextarea();
     alert('Fill in your ICP description first.');
     return;
   }
@@ -565,6 +605,7 @@ function collectExistingSignals() {
 async function fetchMoreSuggestions() {
   const icp = document.getElementById('productContext').value.trim();
   if (!icp) {
+    activateIcpTextarea();
     alert('Fill in your ICP description first.');
     return;
   }

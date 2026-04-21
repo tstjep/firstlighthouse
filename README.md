@@ -76,6 +76,34 @@ Each campaign defines a market: who you're targeting, where they are, what signa
 - **Signals** — what to detect, with keywords, LLM definitions, and point values
 - **LinkedIn** — session cookies for the contact-finding fallback
 
+### Writing a sharp ICP
+
+The ICP field accepts plain prose. The more specific it is, the better the search queries, signal suggestions, and signal detections become. A useful template:
+
+```
+We sell [product] to [industry / company type] with [size] employees.
+Their main pain point is [pain point].
+A strong buying signal is when they [buying trigger].
+The decision maker is the [role].
+Skip companies that [exclusion criteria].
+```
+
+You can start broad and sharpen over time — even a single sentence is enough to get started.
+
+**Example — HR SaaS for Swiss SMBs:**
+> We sell HRly, a cloud HR platform, to Swiss SMBs with 20–200 employees in professional services and light manufacturing. Their main pain point is manual HR admin and staying compliant with Swiss labour law. A strong buying signal is that they are actively hiring an HR manager or scaling headcount. The decision maker is typically the CEO or head of HR. Skip companies with fewer than 10 staff, large enterprises with SAP/Workday already in place, or government-sector organisations.
+
+Signals generated from this ICP: **Active Hiring** (+2), **No HR System** (+2), **Too Large** (−3).
+Reference campaign: [`campaigns/hr-saas-ch.json`](campaigns/hr-saas-ch.json)
+
+**Example — B2B outbound sales tool for UK SaaS companies:**
+> We sell Outbound.io to UK-based SaaS and tech companies with 10–150 employees. Their pain point is that the sales team spends too much time manually researching leads. A buying signal is that they recently hired an SDR, Head of Growth, or VP Sales, or raised Series A/B funding. The decision maker is the VP of Sales or Head of Revenue. Skip bootstrapped solo founders, agencies, and companies with a mature Salesforce/RevOps setup.
+
+Signals generated from this ICP: **Recent Funding** (+3), **Sales Hiring** (+2), **No Outbound Stack** (+2), **Enterprise RevOps** (−3).
+Reference campaign: [`campaigns/sales-tools-uk.json`](campaigns/sales-tools-uk.json)
+
+---
+
 ### AI signal suggestions
 
 The editor has a **✦ Suggest signals** button. Fill in your ICP, click it, and the AI runs two parallel calls:
@@ -159,7 +187,9 @@ PYTEST_RUN_INTEGRATION=1 PYTHONPATH="" ./venv/bin/python -m pytest tests/ -v -m 
 ```
 salesintel/
 ├── campaigns/
-│   └── immigration-uk.json      # Example campaign config
+│   ├── immigration-uk.json      # UK immigration law firms (original)
+│   ├── hr-saas-ch.json          # HR SaaS → Swiss SMBs (reference scenario)
+│   └── sales-tools-uk.json     # B2B sales tool → UK SaaS (reference scenario)
 │
 ├── agents/
 │   ├── search_agent.py          # Step 1 — discover companies

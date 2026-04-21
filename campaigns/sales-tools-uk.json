@@ -1,0 +1,100 @@
+{
+  "id": "sales-tools-uk",
+  "name": "Sales Tools – UK SaaS",
+  "product_context": "We sell Outbound.io, a B2B sales prospecting and outreach platform, to UK-based SaaS and tech companies with 10–150 employees. Their pain point is that the sales team spends too much time manually researching leads and lacks a repeatable outbound process. A buying signal is that they recently hired a Sales Development Rep, Head of Growth, or VP Sales, or they raised Series A/B funding. The decision maker is the VP of Sales or Head of Revenue. Skip bootstrapped solo founders, agencies, and companies that already use Salesforce with a full RevOps team.",
+  "region": {
+    "label": "United Kingdom",
+    "country_code": "gb",
+    "country_restrict": "countryGB",
+    "tld": "co.uk"
+  },
+  "spreadsheet_id": "",
+  "credentials_file": "melt2.json",
+  "linkedin": { "li_at": "", "jsessionid": "" },
+  "export_format": "waalaxy",
+  "segments": [
+    {
+      "name": "UKSaaS",
+      "description": "UK-based B2B SaaS companies with 10–150 employees that have a sales team but no mature outbound process",
+      "icp_context": "UK B2B SaaS company, 10–150 staff, growing sales team, no dedicated RevOps",
+      "search": {
+        "tld_queries": [
+          "site:.co.uk \"B2B SaaS\" OR \"software platform\" \"VP Sales\" OR \"Head of Sales\" hiring",
+          "site:.co.uk \"SaaS\" \"Series A\" OR \"Series B\" 2023 OR 2024 UK",
+          "site:.co.uk \"software company\" \"SDR\" OR \"sales development\" \"join our team\""
+        ],
+        "extra_queries": [
+          "UK B2B SaaS company 10-150 employees \"VP of Sales\" OR \"Head of Growth\" hiring 2024",
+          "London OR Manchester \"SaaS startup\" \"Series A\" sales team growing",
+          "site:linkedin.com/company UK SaaS 50-150 employees B2B",
+          "\"outbound sales\" UK tech startup \"SDR\" OR \"BDR\" job posting",
+          "site:techcrunch.com UK SaaS Series A 2024 sales",
+          "site:eu.startups.com UK B2B software funding 2023 2024"
+        ]
+      },
+      "contact": {
+        "roles": ["VP Sales", "Head of Sales", "Head of Growth", "VP Revenue", "Chief Revenue Officer", "Founder"]
+      }
+    },
+    {
+      "name": "UKFintech",
+      "description": "UK fintech and insurtech companies with 10–150 employees building outbound sales motions",
+      "icp_context": "UK fintech or insurtech, 10–150 staff, B2B focus, expanding sales team",
+      "search": {
+        "tld_queries": [
+          "site:.co.uk \"fintech\" OR \"insurtech\" \"sales\" \"hiring\" \"Series A\" OR \"Series B\"",
+          "site:.co.uk \"payments\" OR \"lending\" OR \"insurance\" platform \"SDR\" OR \"VP Sales\"",
+          "site:.co.uk \"wealthtech\" OR \"regtech\" \"B2B\" \"sales team\" \"join us\""
+        ],
+        "extra_queries": [
+          "UK fintech B2B 50-150 employees \"VP Sales\" OR \"Head of Revenue\" 2024",
+          "London fintech Series A 2024 sales hiring",
+          "site:linkedin.com/company UK fintech 20-150 B2B sales",
+          "UK insurtech OR regtech \"outbound\" OR \"prospecting\" sales team",
+          "site:fintechfutures.com UK B2B fintech Series A 2024"
+        ]
+      },
+      "contact": {
+        "roles": ["VP Sales", "Head of Sales", "Chief Revenue Officer", "Co-founder", "Head of Growth"]
+      }
+    }
+  ],
+  "signals": [
+    {
+      "key": "recent_funding",
+      "name": "Recent Funding",
+      "description": "Raised Series A or B in the last 18 months",
+      "llm_definition": "Mark Yes if the company announced a Series A or B funding round within the last 18 months. This is a strong signal they are investing in growth and likely building out their sales team. Mark No if they are bootstrapped, pre-seed, or if the last funding was more than 2 years ago.",
+      "keywords": ["Series A", "Series B", "funding", "raised", "investment", "venture capital"],
+      "points": 3
+    },
+    {
+      "key": "sales_hiring",
+      "name": "Sales Hiring",
+      "description": "Actively hiring SDRs, AEs, or sales leadership",
+      "llm_definition": "Mark Yes if the company has open roles for SDR, BDR, Account Executive, VP of Sales, or Head of Growth in the last 90 days. Mark No if no relevant sales roles are open.",
+      "keywords": ["SDR", "BDR", "account executive", "VP Sales", "Head of Growth", "sales development"],
+      "points": 2
+    },
+    {
+      "key": "no_crm_outbound",
+      "name": "No Outbound Stack",
+      "description": "No evidence of an outbound sales tool",
+      "llm_definition": "Mark Yes if the company shows no sign of using outbound tools (no mention of Outreach, Salesloft, Apollo, Lemlist, or similar in job postings or website). Mark No if they clearly already have an outbound stack.",
+      "keywords": ["Outreach", "Salesloft", "Apollo", "Lemlist", "Outbound", "RevOps", "Salesforce"],
+      "points": 2
+    },
+    {
+      "key": "enterprise_revops",
+      "name": "Enterprise RevOps",
+      "description": "Has a mature RevOps / Salesforce setup — not our buyer",
+      "llm_definition": "Mark Yes if the company has a dedicated RevOps team, Salesforce administrator, or uses enterprise CRM and sales enablement tools at scale. These companies already have a mature outbound stack and are not a fit. Mark No if they appear early-stage or lack a formal sales ops function.",
+      "keywords": ["RevOps", "Salesforce admin", "enterprise CRM", "sales operations", "HubSpot Enterprise"],
+      "points": -3
+    }
+  ],
+  "rating": {
+    "contact_threshold": 8,
+    "sweet_spot_sizes": []
+  }
+}

@@ -1,0 +1,91 @@
+{
+  "id": "hr-saas-ch",
+  "name": "HR SaaS – Swiss SMBs",
+  "product_context": "We sell HRly, a cloud HR platform, to Swiss SMBs with 20–200 employees in professional services and light manufacturing. Their main pain point is manual HR admin and staying compliant with Swiss labour law (Obligationenrecht, AHV). A strong buying signal is that they are actively hiring an HR manager or scaling headcount. The decision maker is typically the CEO or head of HR. Skip companies with fewer than 10 staff, large enterprises with a dedicated HR team already on an SAP/Workday contract, or government-sector organisations.",
+  "region": {
+    "label": "Switzerland",
+    "country_code": "ch",
+    "country_restrict": "countryCH",
+    "tld": "ch"
+  },
+  "spreadsheet_id": "",
+  "credentials_file": "melt2.json",
+  "linkedin": { "li_at": "", "jsessionid": "" },
+  "export_format": "waalaxy",
+  "segments": [
+    {
+      "name": "ProfServices",
+      "description": "Swiss professional-services SMBs (accounting, consulting, engineering, legal) with 20–200 staff",
+      "icp_context": "Swiss professional services firm, 20–200 employees, using manual HR or legacy payroll software",
+      "search": {
+        "tld_queries": [
+          "site:.ch \"Treuhand\" OR \"Beratung\" \"Stellenangebote\" \"HR\" -enterprise",
+          "site:.ch \"Ingenieurbüro\" OR \"Planungsbüro\" \"Karriere\" OR \"Jobs\"",
+          "site:.ch \"Wirtschaftsprüfung\" OR \"Revisionsgesellschaft\" \"Team\" \"Mitarbeitende\""
+        ],
+        "extra_queries": [
+          "Schweiz Treuhand KMU HR Software Stellenangebote",
+          "Switzerland SMB consulting firm \"HR manager\" OR \"Personalleitung\" hiring",
+          "site:linkedin.com/company Schweiz Beratung 50-200 Mitarbeitende",
+          "\"Personalvermittlung\" OR \"Personalmanagement\" KMU Schweiz Software",
+          "Zürich OR Bern OR Basel Ingenieurbüro Personalwesen Stellenangebote"
+        ]
+      },
+      "contact": {
+        "roles": ["CEO", "Geschäftsführer", "Head of HR", "Personalleitung", "CFO"]
+      }
+    },
+    {
+      "name": "LightManufacturing",
+      "description": "Swiss light-manufacturing SMBs (precision parts, medtech, food, packaging) with 20–200 staff",
+      "icp_context": "Swiss manufacturing SMB, 20–200 employees, manual payroll or legacy HR system",
+      "search": {
+        "tld_queries": [
+          "site:.ch \"Präzisionsteile\" OR \"Medtech\" \"Stellenangebote\" \"HR\" OR \"Personal\"",
+          "site:.ch \"Lebensmittelproduktion\" OR \"Verpackung\" \"Karriere\" \"KMU\"",
+          "site:.ch \"Maschinenbau\" \"Mitarbeitende\" \"HR\" OR \"Personalwesen\""
+        ],
+        "extra_queries": [
+          "Schweiz Maschinenbau KMU 50 Mitarbeitende HR Software",
+          "Swiss medtech SMB \"head of HR\" OR \"Personalverantwortliche\" hiring",
+          "site:linkedin.com/company Schweiz Fertigung 20-200 Mitarbeitende",
+          "Zürich OR Winterthur OR St. Gallen Produktion Personalwesen Stellen",
+          "Swiss manufacturing company payroll software replacement"
+        ]
+      },
+      "contact": {
+        "roles": ["CEO", "Geschäftsführer", "HR Manager", "Personalleitung", "Operations Manager"]
+      }
+    }
+  ],
+  "signals": [
+    {
+      "key": "active_hiring",
+      "name": "Active Hiring",
+      "description": "Company is actively growing its headcount",
+      "llm_definition": "Mark Yes if the company has open job postings in the last 90 days, especially roles in HR, operations, or production. Mark No if there are no current openings or if the company shows signs of downsizing.",
+      "keywords": ["Stellenangebote", "Jobs", "Karriere", "hiring", "join our team", "we're growing"],
+      "points": 2
+    },
+    {
+      "key": "no_hr_system",
+      "name": "No HR System",
+      "description": "No mention of a dedicated HR platform",
+      "llm_definition": "Mark Yes if the company website or job postings make no reference to an HR platform, HRIS, or HR software — suggesting they rely on spreadsheets or manual processes. Mark No if they explicitly mention Workday, SAP HR, Personio, or similar tools.",
+      "keywords": ["Excel", "manual", "spreadsheet", "no system", "Personio", "SAP HR", "Workday"],
+      "points": 2
+    },
+    {
+      "key": "too_large",
+      "name": "Too Large",
+      "description": "Likely already has a dedicated HR team and enterprise system",
+      "llm_definition": "Mark Yes if the company has more than 500 employees, lists a Chief HR Officer, or explicitly mentions enterprise HR software. Mark No if they are clearly SMB scale.",
+      "keywords": ["CHRO", "Chief HR Officer", "SAP", "Workday", "enterprise", "1000 Mitarbeitende"],
+      "points": -3
+    }
+  ],
+  "rating": {
+    "contact_threshold": 7,
+    "sweet_spot_sizes": []
+  }
+}
