@@ -238,17 +238,20 @@
   <div class="section" id="signals-section">
     <div class="section-header">
       <h2>Buying signals</h2>
-      <div style="display:flex; gap:0.4rem;">
+      <div style="display:flex; gap:0.4rem; align-items:center;">
         <button type="button" id="suggestBtn" onclick="fetchSuggestions()"
                 class="btn-ai btn-sm" style="display:none;">
-          ✦ Suggest from ICP
+          ✦ Suggest signals
         </button>
-        <button type="button" id="suggestMoreBtn" onclick="fetchMoreSuggestions()" class="btn-ai btn-sm">
+        <button type="button" id="suggestMoreBtn" onclick="fetchMoreSuggestions()"
+                class="btn-ai btn-sm" style="display:none;">
           ✦ Suggest more
         </button>
         <button type="submit" name="action" value="add_signal" class="btn-sm secondary">+ Add signal</button>
       </div>
     </div>
+
+    <div id="signalsStageHint" style="display:none; margin-bottom:0.85rem; font-size:0.8rem; color:#8896b0; background:#f8fafd; border:1px solid #e5ecf8; border-radius:var(--radius-sm); padding:0.6rem 0.9rem;"></div>
 
     <p class="help" style="margin-bottom: 1rem;">
       Signals are clues the AI looks for on each company's website. Positive points boost their score; negative points down-rank or exclude them.
@@ -257,7 +260,7 @@
     <!-- AI "suggest from ICP" panel -->
     <div id="suggestionPanel" style="display:none; margin-bottom:1rem; border:1px solid #b0c4de; border-radius:var(--radius); background:#f7f9ff; padding:1.1rem 1.25rem;">
       <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.85rem;">
-        <span style="font-size:0.85rem; font-weight:700; color:var(--brand);">✦ AI signal suggestions</span>
+        <span style="font-size:0.85rem; font-weight:700; color:var(--brand);">✦ Signal suggestions</span>
         <button type="button" onclick="dismissSuggestions()"
                 class="btn-ghost btn-sm">dismiss ×</button>
       </div>
@@ -272,12 +275,12 @@
     <!-- AI "suggest more" panel -->
     <div id="moreSuggestionPanel" style="display:none; margin-bottom:1rem; border:1px solid #b0c4de; border-radius:var(--radius); background:#f7f9ff; padding:1.1rem 1.25rem;">
       <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.85rem;">
-        <span style="font-size:0.85rem; font-weight:700; color:var(--brand);">✦ Additional signal ideas</span>
+        <span style="font-size:0.85rem; font-weight:700; color:var(--brand);">✦ More signal ideas</span>
         <button type="button" onclick="dismissMoreSuggestions()"
                 class="btn-ghost btn-sm">dismiss ×</button>
       </div>
       <p style="font-size:0.78rem; color:#6b7a99; margin:0 0 1rem;">
-        Suggestions that complement your existing signals — gaps the AI noticed based on your ICP.
+        Signals that complement what you already have — gaps spotted based on your ICP.
       </p>
       <div id="moreSuggestionCards" style="display:flex; flex-direction:column; gap:0.65rem;"></div>
       <div id="moreSuggestError" style="display:none; font-size:0.82rem; color:var(--danger); margin-top:0.5rem;"></div>
@@ -349,17 +352,15 @@
   <div class="section" id="contacts-section">
     <div class="section-header">
       <h2>Contacts to find</h2>
+      <button type="button" id="suggestRolesBtn" onclick="fetchRoleSuggestions()"
+              class="btn-ai btn-sm" style="display:none;">
+        ✦ Suggest roles
+      </button>
     </div>
 
     <div>
-      <span style="display:flex; align-items:baseline; justify-content:space-between; gap:0.5rem; margin-bottom:0.35rem;">
+      <span style="display:flex; align-items:baseline; gap:0.5rem; margin-bottom:0.35rem;">
         <span style="font-size:0.835rem; font-weight:600; color:#374151;">Roles to target</span>
-        <button type="button"
-                onclick="fetchRoleSuggestions()"
-                id="suggestRolesBtn"
-                class="btn-ai btn-sm">
-          ✦ Suggest roles
-        </button>
       </span>
 
       <!-- buyer / user legend -->
@@ -371,13 +372,14 @@
       <textarea name="contact.roles"
                 id="contactRoles"
                 rows="2"
-                placeholder="Managing Partner, Head of HR, Partner, Director">{{ campaign.contact.roles | join(", ") }}</textarea>
+                placeholder="Managing Partner, Head of HR, Partner, Director"
+                oninput="updateStageUI()">{{ campaign.contact.roles | join(", ") }}</textarea>
 
       <!-- role suggestion panel -->
       <div id="roleSuggestionPanel"
            style="display:none; margin-top:0.5rem; border:1px solid #b0c4de; border-radius:var(--radius); background:#f7f9ff; padding:1rem 1.15rem;">
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.5rem;">
-          <span style="font-size:0.85rem; font-weight:700; color:var(--brand);">✦ Suggested roles</span>
+          <span style="font-size:0.85rem; font-weight:700; color:var(--brand);">✦ Role suggestions</span>
           <button type="button" onclick="dismissRolePanel()"
                   class="btn-ghost btn-sm">dismiss ×</button>
         </div>
@@ -534,7 +536,7 @@ async function fetchSuggestions() {
   }
 
   const btn = document.getElementById('suggestBtn');
-  btn.textContent = '⏳ Thinking…';
+  btn.textContent = '⏳ Loading…';
   btn.disabled = true;
 
   document.getElementById('suggestionPanel').style.display = 'block';
@@ -601,7 +603,7 @@ function injectSignal(sig) {
       <h4>
         ${esc(sig.name)}
         <span class="tag ${badgeCls}">${badgeTxt}</span>
-        <span style="font-size:0.68rem; font-weight:400; color:#8896b0; margin-left:0.25rem;">AI suggested</span>
+        <span style="font-size:0.68rem; font-weight:400; color:#8896b0; margin-left:0.25rem;">suggested</span>
       </h4>
       <button type="button" onclick="removeInjectedSignal(this)"
               class="btn-sm btn-danger">Remove</button>
@@ -637,11 +639,13 @@ function injectSignal(sig) {
 
   // Increment count
   countInput.value = idx + 1;
+  updateStageUI();
 }
 
 function removeInjectedSignal(btn) {
   btn.closest('.signal-card').remove();
   renumberSignals();
+  updateStageUI();
 }
 
 function renumberSignals() {
@@ -699,7 +703,7 @@ async function fetchMoreSuggestions() {
   }
 
   const btn = document.getElementById('suggestMoreBtn');
-  btn.textContent = '⏳ Thinking…';
+  btn.textContent = '⏳ Loading…';
   btn.disabled = true;
 
   document.getElementById('moreSuggestionPanel').style.display = 'block';
@@ -953,10 +957,7 @@ function rebuildIcp() {
     if (ta) ta.value = parts.join('');
   }
 
-  // Show "Suggest signals" only once the product field has content
-  const productFilled = !!(document.getElementById('icp_product')?.value.trim());
-  const btn = document.getElementById('suggestBtn');
-  if (btn) btn.style.display = productFilled ? '' : 'none';
+  updateStageUI();
 }
 
 // Hide the hint text beneath a field once the user has typed something
@@ -1020,9 +1021,57 @@ function fillExampleValues() {
   rebuildIcp();
 }
 
+function signalCount() {
+  // Count both server-rendered and injected signals
+  return document.querySelectorAll('[name^="signals."][name$=".name"]').length;
+}
+
+function hasRoles() {
+  return !!(document.getElementById('contactRoles')?.value.trim());
+}
+
+function updateStageUI() {
+  const icpFilled  = !!(document.getElementById('icp_product')?.value.trim());
+  const hasSigs    = signalCount() > 0;
+  const hasRolesNow = hasRoles();
+
+  const suggestBtn     = document.getElementById('suggestBtn');
+  const suggestMoreBtn = document.getElementById('suggestMoreBtn');
+  const suggestRolesBtn = document.getElementById('suggestRolesBtn');
+  const stageHint      = document.getElementById('signalsStageHint');
+
+  // Stage 0 — no ICP
+  if (!icpFilled) {
+    if (suggestBtn)      suggestBtn.style.display      = 'none';
+    if (suggestMoreBtn)  suggestMoreBtn.style.display  = 'none';
+    if (suggestRolesBtn) suggestRolesBtn.style.display = 'none';
+    if (stageHint) {
+      stageHint.style.display = 'block';
+      stageHint.innerHTML = '💡 Fill in your ICP above to unlock signal suggestions.';
+    }
+    return;
+  }
+
+  // Stage 1 — ICP filled, no signals yet
+  if (!hasSigs) {
+    if (suggestBtn)      { suggestBtn.style.display = ''; suggestBtn.textContent = '✦ Suggest signals'; }
+    if (suggestMoreBtn)  suggestMoreBtn.style.display  = 'none';
+    if (suggestRolesBtn) suggestRolesBtn.style.display = 'none';
+    if (stageHint) {
+      stageHint.style.display = 'block';
+      stageHint.innerHTML = '✦ Your ICP is ready — click <strong>Suggest signals</strong> to get started, or add one manually.';
+    }
+    return;
+  }
+
+  // Stage 2+ — ICP + signals exist
+  if (suggestBtn)      { suggestBtn.style.display = ''; suggestBtn.textContent = '✦ Suggest signals'; }
+  if (suggestMoreBtn)  { suggestMoreBtn.style.display = ''; }
+  if (suggestRolesBtn) { suggestRolesBtn.style.display = ''; }
+  if (stageHint)       stageHint.style.display = 'none';
+}
+
 function initIcpBuilder() {
-  // Pre-fill region field from saved region label only in edit mode
-  // (detect edit mode by checking if a campaign name is already saved)
   const isEditMode = !!{{ 'true' if campaign.product_context else 'false' }};
   const regionInput = document.getElementById('icp_region');
   const savedRegion = document.querySelector('[name="region.label"]');
@@ -1030,12 +1079,8 @@ function initIcpBuilder() {
     regionInput.value = savedRegion.value;
     updateHint(regionInput);
   }
-  // Hide hints for any other pre-filled fields (edit mode)
   document.querySelectorAll('#icpBuilder input[id^="icp_"]').forEach(updateHint);
-  // Sync suggest button state
-  const productFilled = !!(document.getElementById('icp_product')?.value.trim());
-  const btn = document.getElementById('suggestBtn');
-  if (btn) btn.style.display = productFilled ? '' : 'none';
+  updateStageUI();
 }
 
 document.addEventListener('DOMContentLoaded', initIcpBuilder);
