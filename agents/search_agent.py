@@ -2,11 +2,11 @@
 """
 Company Search Agent
 ====================
-Discovers companies in the target market and records them in the Google Sheet.
+Discovers companies in the target market and records them in the local JSON store.
 
 Usage:
-    python agents/search_agent.py --campaign immigration-uk --tab LawFirms
-    python agents/search_agent.py --campaign immigration-uk --tab Advisors
+    python agents/search_agent.py --campaign hr-saas-ch --tab ProfServices
+    python agents/search_agent.py --campaign sales-tools-uk --tab UKSaaS
 """
 
 import argparse
@@ -21,65 +21,12 @@ sys.path.insert(0, str(PROJECT_ROOT))
 import config as cfg
 from campaign import Campaign
 from agents.provider import build_provider
+from store import ResultStore
 from tools.serp_tool import SerpSearchTool
-from tools.sheets_tool import SheetsAppendTool
-
-from google.oauth2.service_account import Credentials
-from googleapiclient.discovery import build
+from tools.json_append_tool import JsonAppendTool
 
 from nanobot.agent.loop import AgentLoop
 from nanobot.bus.queue import MessageBus
-
-_SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
-
-
-def fetch_existing_companies(
-    spreadsheet_id: str, credentials_file: str, tab: str
-) -> tuple[set[str], set[str]]:
-    """Return (names, domains) for one tab."""
-    try:
-        creds = Credentials.from_service_account_file(credentials_file, scopes=_SCOPES)
-        service = build("sheets", "v4", credentials=creds)
-        result = (
-            service.spreadsheets().values()
-            .get(spreadsheetId=spreadsheet_id, range=f"{tab}!A:E")
-            .execute()
-        )
-    except Exception as exc:
-        print(f"[warning] Could not fetch existing companies from '{tab}': {exc}")
-        return set(), set()
-
-    rows = result.get("values", [])
-    names: set[str] = set()
-    domains: set[str] = set()
-    for row in rows[1:]:
-        name    = row[0].strip().lower() if len(row) > 0 else ""
-        website = row[4].strip()         if len(row) > 4 else ""
-        if name:
-            names.add(name)
-        if website:
-            domain = website.lower()
-            for prefix in ("https://", "http://", "www."):
-                domain = domain.removeprefix(prefix)
-            domain = domain.rstrip("/").split("/")[0]
-            if domain:
-                domains.add(domain)
-    return names, domains
-
-
-def fetch_all_existing_companies(
-    campaign: Campaign, credentials_file: str
-) -> tuple[set[str], set[str]]:
-    """Return (names, domains) across ALL segments for cross-tab dedup."""
-    all_names: set[str] = set()
-    all_domains: set[str] = set()
-    for seg in campaign.segments:
-        names, domains = fetch_existing_companies(
-            campaign.spreadsheet_id, credentials_file, seg.name
-        )
-        all_names |= names
-        all_domains |= domains
-    return all_names, all_domains
 
 
 def build_task(campaign: Campaign, tab: str) -> str:
@@ -90,7 +37,7 @@ def build_task(campaign: Campaign, tab: str) -> str:
 
     return f"""
 You are a lead-generation researcher. Find companies that match this profile: {seg.description}.
-Record every real company you find using the sheets_append_company tool.
+Record every real company you find using the record_company tool.
 
 Many companies in this category don't use .{tld} — they may use .com, .io, .org, or others.
 Use all search strategies below to avoid missing them.
@@ -110,7 +57,7 @@ Instructions:
    - Professional directories and review sites
    - LinkedIn company search for firms that don't rank well on Google
 
-4. For EVERY real company found, immediately call sheets_append_company.
+4. For EVERY real company found, immediately call record_company.
    The tool automatically skips duplicates.
    Only skip: companies clearly outside the target region, or not matching: {seg.description}.
 
@@ -123,15 +70,9 @@ Be exhaustive. Cover the whole {campaign.region.label} — not just major cities
 
 
 async def main(campaign: Campaign, tab: str) -> None:
-    credentials_file = str(PROJECT_ROOT / campaign.credentials_file)
-
     errors = []
-    if not campaign.spreadsheet_id:
-        errors.append("spreadsheet_id is not set in campaign config")
     if not cfg.SERPAPI_KEY:
         errors.append("SERPAPI_KEY is not set in config.py")
-    if not Path(credentials_file).exists():
-        errors.append(f"Credentials file not found: {credentials_file}")
     if tab not in campaign.all_tab_names():
         errors.append(f"Tab '{tab}' not found in campaign. Available: {campaign.all_tab_names()}")
     if errors:
@@ -140,9 +81,8 @@ async def main(campaign: Campaign, tab: str) -> None:
             print(f"  ✗ {msg}")
         sys.exit(1)
 
-    seg = campaign.segment(tab)
-    existing_names, existing_domains = fetch_all_existing_companies(campaign, credentials_file)
-    print(f"Existing companies across all tabs: {len(existing_names)} (cross-tab dedup active)")
+    seg   = campaign.segment(tab)
+    store = ResultStore(campaign.id)
 
     provider, model = build_provider()
 
@@ -150,7 +90,7 @@ async def main(campaign: Campaign, tab: str) -> None:
     print(f"Campaign: {campaign.name}")
     print(f"Tab:      {tab} — {seg.description}")
     print(f"Model:    {model}")
-    print(f"Sheet:    {campaign.spreadsheet_id}\n")
+    print(f"Store:    data/{campaign.id}/results.json\n")
 
     min_searches = len(seg.search.tld_queries) + len(seg.search.extra_queries)
     max_iter = min_searches * 8 + 50
@@ -165,17 +105,11 @@ async def main(campaign: Campaign, tab: str) -> None:
     )
 
     agent.tools.register(SerpSearchTool(api_key=cfg.SERPAPI_KEY, **campaign.serp_params()))
-    agent.tools.register(SheetsAppendTool(
-        spreadsheet_id=campaign.spreadsheet_id,
-        credentials_file=credentials_file,
-        sheet_name=tab,
-        existing_names=existing_names,
-        existing_domains=existing_domains,
-    ))
+    agent.tools.register(JsonAppendTool(store=store, segment=tab))
 
     print("Agent running — streaming progress below:\n" + "-" * 60)
 
-    async def on_progress(text: str, **kwargs) -> None:
+    async def on_progress(text: str, **_) -> None:
         if text:
             print(f"[agent] {text}")
 
@@ -199,8 +133,8 @@ async def main(campaign: Campaign, tab: str) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Company search agent")
-    parser.add_argument("--campaign", default="immigration-uk", help="Campaign ID")
-    parser.add_argument("--tab",      default=None,             help="Segment / sheet tab name")
+    parser.add_argument("--campaign", required=True, help="Campaign ID")
+    parser.add_argument("--tab",      default=None,  help="Segment / tab name")
     args = parser.parse_args()
 
     campaign = Campaign.load(args.campaign)

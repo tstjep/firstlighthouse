@@ -2,15 +2,15 @@
 """
 Company Info Enrichment Agent
 ==============================
-Reads the sheet for a given segment and fills in any rows with missing
+Reads the local JSON store for a given segment and fills in any rows with missing
 information (website, LinkedIn, size, HQ location, notes).
 
 Handles manually-added companies — a company name alone is enough to start.
 
 Usage:
-    python agents/enrich_agent.py --campaign immigration-uk --tab LawFirms
-    python agents/enrich_agent.py --campaign immigration-uk --tab LawFirms --min-rating 8
-    python agents/enrich_agent.py --campaign immigration-uk --tab LawFirms --max-rows 10
+    python agents/enrich_agent.py --campaign hr-saas-ch --tab ProfServices
+    python agents/enrich_agent.py --campaign sales-tools-uk --tab UKSaaS --min-rating 8
+    python agents/enrich_agent.py --campaign hr-saas-ch --tab ProfServices --max-rows 10
 """
 
 import argparse
@@ -27,30 +27,17 @@ sys.path.insert(0, str(PROJECT_ROOT))
 import config as cfg
 from campaign import Campaign
 from agents.provider import build_provider
+from store import ResultStore
 from tools.serp_tool import SerpSearchTool
-from tools.sheets_update_info_tool import SheetsUpdateInfoTool
-
-from google.oauth2.service_account import Credentials
-from googleapiclient.discovery import build
+from tools.json_update_info_tool import JsonUpdateInfoTool
 
 from nanobot.agent.loop import AgentLoop
 from nanobot.bus.queue import MessageBus
-
-_SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 
 _PREFETCH_CONCURRENCY = 20
 _CHUNK_SIZE = 20
 _LINKEDIN_RE = re.compile(r"linkedin\.com", re.I)
 _DOMAIN_RE   = re.compile(r"https?://(?:www\.)?([^/?#]+)")
-
-# Fixed column indices (0-based, A–H)
-_COL_NAME     = 0  # A
-_COL_RATING   = 2  # C
-_COL_NOTES    = 3  # D
-_COL_WEBSITE  = 4  # E
-_COL_LINKEDIN = 5  # F
-_COL_SIZE     = 6  # G
-_COL_HQ       = 7  # H
 
 
 def _company_queries(company: dict, enrich_context: str) -> tuple[str | None, str | None]:
@@ -107,58 +94,35 @@ async def _prefetch_searches(
 
 
 def fetch_incomplete_rows(
-    campaign: Campaign,
-    credentials_file: str,
+    store: ResultStore,
     tab: str,
     min_rating: int = 0,
 ) -> list[dict]:
-    try:
-        creds = Credentials.from_service_account_file(credentials_file, scopes=_SCOPES)
-        service = build("sheets", "v4", credentials=creds)
-        result = (
-            service.spreadsheets().values()
-            .get(spreadsheetId=campaign.spreadsheet_id, range=f"{tab}!A:H")
-            .execute()
-        )
-    except Exception as exc:
-        print(f"[warning] fetch_incomplete_rows: {exc}")
-        return []
-
-    rows = result.get("values", [])
-    if len(rows) <= 1:
-        return []
-
+    """Return rows from the JSON store that are missing enrichment data (no notes)."""
+    rows = store.get_segment(tab)
     incomplete = []
-    for i, row in enumerate(rows[1:], start=2):
-        def cell(idx: int, _row=row) -> str:
-            return _row[idx].strip() if idx < len(_row) else ""
-
-        company_name = cell(_COL_NAME)
-        notes        = cell(_COL_NOTES)
-        website      = cell(_COL_WEBSITE)
-        linkedin     = cell(_COL_LINKEDIN)
-        rating_raw   = cell(_COL_RATING)
-
-        if notes:
+    for row in rows:
+        if row.get("notes"):
             continue
-        if not company_name and not website and not linkedin:
+        name    = (row.get("name") or "").strip()
+        website = (row.get("website") or "").strip()
+        linkedin = (row.get("linkedin") or "").strip()
+        if not name and not website and not linkedin:
             continue
         if min_rating > 0:
             try:
-                if int(rating_raw) < min_rating:
+                if int(row.get("rating") or 0) < min_rating:
                     continue
             except (ValueError, TypeError):
                 pass
-
         incomplete.append({
-            "row_index":    i,
-            "company_name": company_name,
+            "row_index":    row["row_index"],
+            "company_name": name,
             "website":      website,
             "linkedin":     linkedin,
-            "size":         cell(_COL_SIZE),
-            "hq_location":  cell(_COL_HQ),
+            "size":         row.get("size", ""),
+            "hq_location":  row.get("hq", ""),
         })
-
     return incomplete
 
 
@@ -195,7 +159,7 @@ def build_task(
 
         companies_block = "\n\n---\n\n".join(sections)
 
-        return f"""You are a company-data enrichment agent. Below are {len(incomplete_rows)} companies with pre-fetched search results. Extract information from the results and call sheets_update_company_info for each row.
+        return f"""You are a company-data enrichment agent. Below are {len(incomplete_rows)} companies with pre-fetched search results. Extract information from the results and call update_company_info for each row.
 {context_note}
 Instructions:
 - From search result titles, URLs, and snippets (do NOT visit URLs), extract:
@@ -205,7 +169,7 @@ Instructions:
     size          (employee count: "1-10", "11-50", "51-200", "201-500", "501-1000", "1000+")
     hq_location   (city and country, e.g. "London, UK")
     notes         (one-sentence description of what the company does and their focus area)
-- Call sheets_update_company_info with row_index and the fields you found.
+- Call update_company_info with row_index and the fields you found.
     Always pass company_name.
     Do NOT pass fields already listed under "Known data" (don't overwrite).
     If "Known data" website is a linkedin.com URL: pass it as linkedin, omit website.
@@ -223,12 +187,12 @@ Instructions:
 You are a company-data enrichment agent. Fill in missing information for the
 {len(incomplete_rows)} companies listed below.
 {context_note}
-Companies to enrich (row_index is the sheet row to update):
+Companies to enrich (row_index is the identifier to update):
 {rows_json}
 
 For each company:
 1. Run 1–2 targeted searches to find company name, website, LinkedIn, size, location, description.
-2. Call sheets_update_company_info with all fields you found.
+2. Call update_company_info with all fields you found.
    - Always pass company_name.
    - Do NOT overwrite fields that already have correct values.
    - Do NOT add new rows.
@@ -241,7 +205,7 @@ async def _run_enrichment_chunk(
     prefetched: dict,
     campaign: Campaign,
     tab: str,
-    credentials_file: str,
+    store: ResultStore,
     provider,
     model: str,
     chunk_num: int,
@@ -261,11 +225,7 @@ async def _run_enrichment_chunk(
         memory_window=60,
     )
 
-    agent.tools.register(SheetsUpdateInfoTool(
-        spreadsheet_id=campaign.spreadsheet_id,
-        credentials_file=credentials_file,
-        sheet_name=tab,
-    ))
+    agent.tools.register(JsonUpdateInfoTool(store=store, segment=tab))
 
     async def on_progress(text: str) -> None:
         if text:
@@ -284,26 +244,22 @@ async def _run_enrichment_chunk(
 
 
 async def main(campaign: Campaign, tab: str, max_rows: int = 0, min_rating: int = 0) -> None:
-    credentials_file = str(PROJECT_ROOT / campaign.credentials_file)
-
     errors = []
-    if not campaign.spreadsheet_id:
-        errors.append("spreadsheet_id not set in campaign config")
     if not cfg.SERPAPI_KEY:
         errors.append("SERPAPI_KEY not set in config.py")
-    if not Path(credentials_file).exists():
-        errors.append(f"Credentials file not found: {credentials_file}")
     if errors:
         for e in errors:
             print(f"  ✗ {e}")
         sys.exit(1)
 
-    seg = campaign.segment(tab)
+    seg   = campaign.segment(tab)
+    store = ResultStore(campaign.id)
+
     print(f"Starting enrichment agent — Campaign: {campaign.name}  Tab: {tab}")
     if min_rating > 0:
         print(f"Min rating filter: {min_rating}+")
 
-    incomplete = fetch_incomplete_rows(campaign, credentials_file, tab, min_rating=min_rating)
+    incomplete = fetch_incomplete_rows(store, tab, min_rating=min_rating)
     if max_rows and len(incomplete) > max_rows:
         print(f"Rows needing enrichment: {len(incomplete)} (capped to {max_rows})")
         incomplete = incomplete[:max_rows]
@@ -327,7 +283,7 @@ async def main(campaign: Campaign, tab: str, max_rows: int = 0, min_rating: int 
         print(f"\n--- Chunk {chunk_num}/{len(chunks)} ({len(chunk)} companies) ---")
         result = await _run_enrichment_chunk(
             chunk=chunk, prefetched=prefetched, campaign=campaign, tab=tab,
-            credentials_file=credentials_file, provider=provider, model=model,
+            store=store, provider=provider, model=model,
             chunk_num=chunk_num, total_chunks=len(chunks),
         )
         content = result or ""
@@ -339,7 +295,7 @@ async def main(campaign: Campaign, tab: str, max_rows: int = 0, min_rating: int 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Company enrichment agent")
-    parser.add_argument("--campaign",   default="immigration-uk")
+    parser.add_argument("--campaign",   required=True)
     parser.add_argument("--tab",        default=None)
     parser.add_argument("--max-rows",   type=int, default=0)
     parser.add_argument("--min-rating", type=int, default=0)

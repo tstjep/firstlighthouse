@@ -15,7 +15,7 @@ class JsonUpdateInfoTool(Tool):
 
     @property
     def name(self) -> str:
-        return "sheets_update_company_info"   # kept for prompt compat
+        return "update_company_info"
 
     @property
     def description(self) -> str:

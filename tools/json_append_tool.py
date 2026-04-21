@@ -16,7 +16,7 @@ class JsonAppendTool(Tool):
 
     @property
     def name(self) -> str:
-        return "sheets_append_company"   # kept for prompt compat with search agent
+        return "record_company"
 
     @property
     def description(self) -> str:

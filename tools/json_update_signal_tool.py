@@ -16,7 +16,7 @@ class JsonUpdateSignalTool(Tool):
 
     @property
     def name(self) -> str:
-        return "sheets_update_signal"   # kept for prompt compat
+        return "update_signal"
 
     @property
     def description(self) -> str:

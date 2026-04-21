@@ -189,7 +189,8 @@ class TestBuildTaskHR:
 
     def test_task_instructs_to_record_companies(self, hr_ch):
         task = build_task(hr_ch, "ProfServices")
-        assert "sheets_append_company" in task or "record" in task.lower()
+        # Assert on intent (tool call to record companies) not a specific tool name
+        assert "record_company" in task
 
     def test_task_mentions_region(self, hr_ch):
         task = build_task(hr_ch, "ProfServices")
