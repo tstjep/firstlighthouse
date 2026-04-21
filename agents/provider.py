@@ -66,12 +66,11 @@ class _VertexProvider(OpenAICompatProvider):
         self,
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]] | None = None,
-        model: str | None = None,
+        model: str | None = None,  # noqa: ARG002 — always overridden by _vertex_model
         max_tokens: int = 4096,
         temperature: float = 0.7,
         **kwargs,
     ) -> LLMResponse:
-        # Always use the mapped Vertex model name
         resolved_model = self._vertex_model
         response = await super().chat(
             messages=messages,
@@ -102,8 +101,8 @@ class _VertexProvider(OpenAICompatProvider):
 class _DebugProvider(LLMProvider):
     """Wraps any provider and dumps every prompt to stdout when DEBUG_PROMPTS=1."""
 
-    def __init__(self, inner: LLMProvider, default_model: str):
-        super().__init__(default_model=default_model)
+    def __init__(self, inner: LLMProvider):
+        super().__init__()
         self._inner = inner
 
     def get_default_model(self) -> str:
@@ -161,17 +160,17 @@ def build_provider() -> tuple[LLMProvider, str]:
             location=cfg.VERTEX_LOCATION,
             default_model=model,
         )
-        return (_DebugProvider(provider, vertex_model), vertex_model) if _debug else (provider, vertex_model)
+        return (_DebugProvider(provider), vertex_model) if _debug else (provider, vertex_model)
 
     # 2. Direct Anthropic
     if key := os.environ.get("ANTHROPIC_API_KEY"):
         provider = AnthropicProvider(api_key=key, default_model=model)
-        return (_DebugProvider(provider, model), model) if _debug else (provider, model)
+        return (_DebugProvider(provider), model) if _debug else (provider, model)
 
     # 3. Generic OpenAI-compat fallback
     if key := os.environ.get("LLM_API_KEY"):
         provider = OpenAICompatProvider(api_key=key, default_model=model)
-        return (_DebugProvider(provider, model), model) if _debug else (provider, model)
+        return (_DebugProvider(provider), model) if _debug else (provider, model)
 
     print(
         "Error: no LLM provider configured. Set VERTEX_PROJECT in config.py, "
