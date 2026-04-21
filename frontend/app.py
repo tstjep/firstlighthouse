@@ -23,6 +23,7 @@ from fastapi.templating import Jinja2Templates
 from campaign import Campaign, Region, LinkedInConfig, RatingConfig, Segment, SearchConfig, ContactConfig, Signal
 from run_manager import MODES, start_run, load_state, tail_log, validate_run_request
 from store import ResultStore, to_waalaxy_csv, to_lemlist_csv
+from suggest_signals import suggest as suggest_signals, suggest_more as suggest_more_signals
 
 logger = logging.getLogger(__name__)
 
@@ -299,6 +300,49 @@ async def delete_campaign(campaign_id: str):
     except (FileNotFoundError, ValueError):
         pass
     return RedirectResponse("/", status_code=303)
+
+
+# ── Routes: signal suggestions ─────────────────────────────────────────────────
+
+@app.post("/campaigns/{campaign_id}/suggest-signals")
+async def suggest_signals_route(request: Request, campaign_id: str):
+    try:
+        body = await request.json()
+        icp  = str(body.get("product_context", "")).strip()
+    except Exception:
+        return JSONResponse({"error": "Invalid request body"}, status_code=400)
+
+    if not icp:
+        return JSONResponse({"error": "ICP description is required"}, status_code=422)
+
+    try:
+        signals = await suggest_signals(icp)
+        return JSONResponse({"signals": signals})
+    except Exception as exc:
+        logger.error("suggest_signals_route error: %s", exc)
+        return JSONResponse({"error": "Signal suggestion failed. Check your LLM provider config."}, status_code=500)
+
+
+@app.post("/campaigns/{campaign_id}/suggest-more-signals")
+async def suggest_more_signals_route(request: Request, campaign_id: str):
+    try:
+        body             = await request.json()
+        icp              = str(body.get("product_context", "")).strip()
+        existing_signals = body.get("existing_signals", [])
+        if not isinstance(existing_signals, list):
+            existing_signals = []
+    except Exception:
+        return JSONResponse({"error": "Invalid request body"}, status_code=400)
+
+    if not icp:
+        return JSONResponse({"error": "ICP description is required"}, status_code=422)
+
+    try:
+        signals = await suggest_more_signals(icp, existing_signals=existing_signals)
+        return JSONResponse({"signals": signals})
+    except Exception as exc:
+        logger.error("suggest_more_signals_route error: %s", exc)
+        return JSONResponse({"error": "Signal suggestion failed. Check your LLM provider config."}, status_code=500)
 
 
 # ── Routes: run campaign ────────────────────────────────────────────────────────

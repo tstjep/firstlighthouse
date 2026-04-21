@@ -55,14 +55,33 @@
 
     {{ field("Campaign name", "name", campaign.name, placeholder="e.g. UK Immigration Law Firms", required=True) }}
 
-    {{ textarea_field(
-        "ICP — who are you targeting and why?",
-        "product_context",
-        campaign.product_context,
-        rows=3,
-        placeholder="e.g. We sell LawFairy, an immigration case management platform, to UK immigration law firms. Our ideal customer is a firm with 5–100 staff that handles corporate immigration and sponsor licences.",
-        help="Write it the way you'd explain your ICP to a new colleague. This is injected directly into AI prompts."
-    ) }}
+    <label>
+      <span style="display:flex; align-items:baseline; justify-content:space-between; gap:0.5rem;">
+        <span>ICP — who are you targeting and why?</span>
+        <button type="button" id="suggestBtn" onclick="fetchSuggestions()"
+                style="font-size:0.72rem; padding:0.2rem 0.6rem; border-radius:4px; border:1px solid #b0c4de; background:var(--brand-light); color:var(--brand); cursor:pointer; font-weight:600; flex-shrink:0; white-space:nowrap;">
+          ✦ Suggest signals
+        </button>
+      </span>
+      <textarea name="product_context" id="productContext" rows="3"
+                placeholder="e.g. We sell LawFairy, an immigration case management platform, to UK immigration law firms. Our ideal customer is a firm with 5–100 staff that handles corporate immigration and sponsor licences.">{{ campaign.product_context }}</textarea>
+      <small class="help">Write it the way you'd explain your ICP to a new colleague. This is injected directly into AI prompts.</small>
+    </label>
+
+    <!-- AI suggestion panel (hidden until suggestions arrive) -->
+    <div id="suggestionPanel" style="display:none; margin-top:0.5rem; border:1px solid #b0c4de; border-radius:var(--radius); background:#f7f9ff; padding:1.1rem 1.25rem;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.85rem;">
+        <span style="font-size:0.85rem; font-weight:700; color:var(--brand);">✦ AI signal suggestions</span>
+        <button type="button" onclick="dismissSuggestions()"
+                style="font-size:0.75rem; color:#8896b0; background:none; border:none; cursor:pointer; padding:0;">dismiss ×</button>
+      </div>
+      <p style="font-size:0.78rem; color:#6b7a99; margin:0 0 1rem;">
+        Based on your ICP. Review each suggestion — accept what fits, skip the rest.
+        You can edit any accepted signal before saving.
+      </p>
+      <div id="suggestionCards" style="display:flex; flex-direction:column; gap:0.65rem;"></div>
+      <div id="suggestError" style="display:none; font-size:0.82rem; color:var(--danger); margin-top:0.5rem;"></div>
+    </div>
   </div>
 
   <!-- ── 2. REGION ──────────────────────────────────────────────────────── -->
@@ -197,15 +216,35 @@
   </div>
 
   <!-- ── 4. SIGNALS ─────────────────────────────────────────────────────── -->
-  <div class="section" id="signals">
+  <div class="section" id="signals-section">
     <div class="section-header">
       <h2>Buying signals</h2>
-      <button type="submit" name="action" value="add_signal" class="btn-sm secondary outline">+ Add signal</button>
+      <div style="display:flex; gap:0.4rem;">
+        <button type="button" id="suggestMoreBtn" onclick="fetchMoreSuggestions()"
+                style="font-size:0.75rem; padding:0.3rem 0.7rem; border-radius:4px; border:1px solid #b0c4de; background:var(--brand-light); color:var(--brand); cursor:pointer; font-weight:600; white-space:nowrap;">
+          ✦ Suggest more
+        </button>
+        <button type="submit" name="action" value="add_signal" class="btn-sm secondary outline">+ Add signal</button>
+      </div>
     </div>
 
     <p class="help" style="margin-bottom: 1rem;">
       Signals are clues the AI looks for on each company's website. Positive points boost their score; negative points down-rank or exclude them.
     </p>
+
+    <!-- AI "suggest more" panel -->
+    <div id="moreSuggestionPanel" style="display:none; margin-bottom:1rem; border:1px solid #b0c4de; border-radius:var(--radius); background:#f7f9ff; padding:1.1rem 1.25rem;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.85rem;">
+        <span style="font-size:0.85rem; font-weight:700; color:var(--brand);">✦ Additional signal ideas</span>
+        <button type="button" onclick="dismissMoreSuggestions()"
+                style="font-size:0.75rem; color:#8896b0; background:none; border:none; cursor:pointer; padding:0;">dismiss ×</button>
+      </div>
+      <p style="font-size:0.78rem; color:#6b7a99; margin:0 0 1rem;">
+        Suggestions that complement your existing signals — gaps the AI noticed based on your ICP.
+      </p>
+      <div id="moreSuggestionCards" style="display:flex; flex-direction:column; gap:0.65rem;"></div>
+      <div id="moreSuggestError" style="display:none; font-size:0.82rem; color:var(--danger); margin-top:0.5rem;"></div>
+    </div>
 
     {% if campaign.signals %}
       {% for sig in campaign.signals %}
@@ -355,6 +394,278 @@
 </form>
 
 <script>
+// ── Signal suggestions ────────────────────────────────────────────────────────
+
+const campaignId = {{ campaign.id | tojson }};
+
+async function fetchSuggestions() {
+  const icp = document.getElementById('productContext').value.trim();
+  if (!icp) {
+    alert('Fill in your ICP description first.');
+    return;
+  }
+
+  const btn = document.getElementById('suggestBtn');
+  btn.textContent = '⏳ Thinking…';
+  btn.disabled = true;
+
+  document.getElementById('suggestionPanel').style.display = 'block';
+  document.getElementById('suggestError').style.display = 'none';
+  document.getElementById('suggestionCards').innerHTML =
+    '<div style="color:#8896b0; font-size:0.82rem; padding:0.5rem 0;">Generating suggestions…</div>';
+
+  try {
+    const res  = await fetch(`/campaigns/${campaignId}/suggest-signals`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ product_context: icp }),
+    });
+    const data = await res.json();
+
+    if (!res.ok || data.error) {
+      showSuggestError(data.error || 'Suggestion failed.');
+      return;
+    }
+    renderSuggestions(data.signals || []);
+  } catch (e) {
+    showSuggestError('Network error — check your connection.');
+  } finally {
+    btn.textContent = '✦ Suggest signals';
+    btn.disabled = false;
+  }
+}
+
+function showSuggestError(msg) {
+  document.getElementById('suggestionCards').innerHTML = '';
+  const el = document.getElementById('suggestError');
+  el.textContent = '⚠ ' + msg;
+  el.style.display = 'block';
+}
+
+function renderSuggestions(signals) {
+  const container = document.getElementById('suggestionCards');
+  if (!signals.length) {
+    container.innerHTML = '<div style="color:#8896b0; font-size:0.82rem;">No suggestions returned — try adding more detail to your ICP.</div>';
+    return;
+  }
+  renderSuggestionsInto('suggestionCards', signals);
+}
+
+function dismissSuggestions() {
+  document.getElementById('suggestionPanel').style.display = 'none';
+}
+
+function injectSignal(sig) {
+  const countInput = document.querySelector('input[name="signal_count"]');
+  const idx = parseInt(countInput.value) || 0;
+
+  const isNeg    = sig.points < 0;
+  const borderClr = isNeg ? '#ef4444' : '#22c55e';
+  const badgeCls  = isNeg ? 'negative' : 'positive';
+  const badgeTxt  = isNeg ? 'exclusion' : `+${sig.points} pts`;
+
+  // Build and insert a real signal card with all form inputs
+  const card = document.createElement('div');
+  card.className = `signal-card ${isNeg ? 'negative' : 'positive'}`;
+  card.dataset.injected = 'true';
+  card.innerHTML = `
+    <div class="card-header">
+      <h4>
+        ${esc(sig.name)}
+        <span class="tag ${badgeCls}">${badgeTxt}</span>
+        <span style="font-size:0.68rem; font-weight:400; color:#8896b0; margin-left:0.25rem;">AI suggested</span>
+      </h4>
+      <button type="button" onclick="removeInjectedSignal(this)"
+              class="btn-sm btn-danger secondary outline">Remove</button>
+    </div>
+
+    <div class="form-row">
+      <label>Signal name
+        <input type="text" name="signals.${idx}.name" value="${esc(sig.name)}">
+      </label>
+      <label>Points
+        <input type="number" name="signals.${idx}.points" value="${sig.points}" min="-10" max="10">
+        <small class="help">Positive = buying signal · Negative = red flag / exclusion</small>
+      </label>
+    </div>
+    <label>Short description
+      <input type="text" name="signals.${idx}.description" value="${esc(sig.description)}">
+    </label>
+    <label>Definition (instructions for the AI)
+      <textarea name="signals.${idx}.llm_definition" rows="3">${esc(sig.llm_definition)}</textarea>
+    </label>
+    <label>Keywords
+      <input type="text" name="signals.${idx}.keywords" value="${esc((sig.keywords || []).join(', '))}">
+      <small class="help">Comma-separated.</small>
+    </label>
+    <input type="hidden" name="signals.${idx}.key" value="${esc(sig.key)}">
+  `;
+
+  // Insert before the empty-state placeholder or at end of signals section
+  const signalsSection = document.getElementById('signals-section');
+  const emptyState     = signalsSection.querySelector('[style*="dashed"]');
+  if (emptyState) emptyState.remove();
+  signalsSection.appendChild(card);
+
+  // Increment count
+  countInput.value = idx + 1;
+}
+
+function removeInjectedSignal(btn) {
+  btn.closest('.signal-card').remove();
+  renumberSignals();
+}
+
+function renumberSignals() {
+  // Re-index all signal cards that have injected inputs (data-injected)
+  // Server-rendered cards use form submit for removal, so we only renumber injected ones
+  // by rebuilding the full count from all signal-nameable inputs.
+  const countInput = document.querySelector('input[name="signal_count"]');
+  let total = 0;
+
+  // Find the highest existing server-rendered index
+  document.querySelectorAll('[name^="signals."][name$=".name"]:not([data-skip])').forEach(el => {
+    const match = el.name.match(/^signals\.(\d+)\.name$/);
+    if (match) total = Math.max(total, parseInt(match[1]) + 1);
+  });
+
+  // Renumber injected cards sequentially from the end of server-rendered ones
+  document.querySelectorAll('.signal-card[data-injected="true"]').forEach((card, i) => {
+    const newIdx = total + i;
+    card.querySelectorAll('input, textarea').forEach(el => {
+      el.name = el.name.replace(/^signals\.\d+\./, `signals.${newIdx}.`);
+    });
+    // Fix the remove button's onclick
+    const removeBtn = card.querySelector('button[onclick^="removeInjectedSignal"]');
+    if (removeBtn) removeBtn.setAttribute('onclick', 'removeInjectedSignal(this)');
+  });
+
+  // Count all signals (server-rendered + injected)
+  const allNames = document.querySelectorAll('[name^="signals."][name$=".name"]');
+  countInput.value = allNames.length;
+}
+
+function esc(str) {
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── "Suggest more" (context-aware, uses existing signals) ────────────────────
+
+function collectExistingSignals() {
+  const count  = parseInt(document.querySelector('[name="signal_count"]').value) || 0;
+  const result = [];
+  for (let i = 0; i < count; i++) {
+    const name = document.querySelector(`[name="signals.${i}.name"]`)?.value?.trim();
+    const key  = document.querySelector(`[name="signals.${i}.key"]`)?.value?.trim();
+    if (name || key) result.push({ name: name || key, key: key || name });
+  }
+  return result;
+}
+
+async function fetchMoreSuggestions() {
+  const icp = document.getElementById('productContext').value.trim();
+  if (!icp) {
+    alert('Fill in your ICP description first.');
+    return;
+  }
+
+  const btn = document.getElementById('suggestMoreBtn');
+  btn.textContent = '⏳ Thinking…';
+  btn.disabled = true;
+
+  document.getElementById('moreSuggestionPanel').style.display = 'block';
+  document.getElementById('moreSuggestError').style.display = 'none';
+  document.getElementById('moreSuggestionCards').innerHTML =
+    '<div style="color:#8896b0; font-size:0.82rem; padding:0.5rem 0;">Generating suggestions…</div>';
+
+  try {
+    const res  = await fetch(`/campaigns/${campaignId}/suggest-more-signals`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        product_context:  icp,
+        existing_signals: collectExistingSignals(),
+      }),
+    });
+    const data = await res.json();
+
+    if (!res.ok || data.error) {
+      showMoreSuggestError(data.error || 'Suggestion failed.');
+      return;
+    }
+    if (!data.signals?.length) {
+      document.getElementById('moreSuggestionCards').innerHTML =
+        '<div style="color:#8896b0; font-size:0.82rem;">No new ideas — your signal coverage already looks comprehensive.</div>';
+      return;
+    }
+    // Reuse the same renderSuggestions logic, targeting the "more" panel
+    renderSuggestionsInto('moreSuggestionCards', data.signals);
+  } catch (e) {
+    showMoreSuggestError('Network error — check your connection.');
+  } finally {
+    btn.textContent = '✦ Suggest more';
+    btn.disabled = false;
+  }
+}
+
+function showMoreSuggestError(msg) {
+  document.getElementById('moreSuggestionCards').innerHTML = '';
+  const el = document.getElementById('moreSuggestError');
+  el.textContent = '⚠ ' + msg;
+  el.style.display = 'block';
+}
+
+function dismissMoreSuggestions() {
+  document.getElementById('moreSuggestionPanel').style.display = 'none';
+}
+
+function renderSuggestionsInto(containerId, signals) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+  signals.forEach((sig, i) => {
+    const uid       = `${containerId}-${i}`;
+    const isNeg     = sig.points < 0;
+    const badgeCls  = isNeg ? 'negative' : 'positive';
+    const badgeTxt  = isNeg ? `${sig.points} pts (exclusion)` : `+${sig.points} pts`;
+    const borderClr = isNeg ? '#ef4444' : '#22c55e';
+    const card      = document.createElement('div');
+    card.id         = uid;
+    card.style.cssText = `border:1px solid #dde4f0; border-left:4px solid ${borderClr}; border-radius:6px; padding:0.85rem 1rem; background:#fff; display:flex; gap:1rem; align-items:flex-start;`;
+    card.innerHTML = `
+      <div style="flex:1; min-width:0;">
+        <div style="display:flex; align-items:center; gap:0.45rem; margin-bottom:0.3rem; flex-wrap:wrap;">
+          <span style="font-weight:700; font-size:0.875rem; color:var(--brand);">${esc(sig.name)}</span>
+          <span class="tag ${badgeCls}" style="font-size:0.68rem;">${badgeTxt}</span>
+        </div>
+        <p style="margin:0 0 0.3rem; font-size:0.8rem; color:#374151; line-height:1.45;">${esc(sig.description)}</p>
+        <p style="margin:0 0 0.3rem; font-size:0.78rem; color:#6b7a99; line-height:1.4;">${esc(sig.llm_definition)}</p>
+        ${sig.keywords?.length ? `<div style="font-size:0.72rem; color:#8896b0; margin-top:0.25rem;">Keywords: ${sig.keywords.map(k => `<code style="background:#f1f5fb; padding:0.05em 0.3em; border-radius:3px;">${esc(k)}</code>`).join(' ')}</div>` : ''}
+      </div>
+      <div style="display:flex; flex-direction:column; gap:0.35rem; flex-shrink:0;">
+        <button type="button" onclick="acceptSuggestionById('${uid}', this)"
+                style="font-size:0.75rem; font-weight:700; padding:0.3rem 0.7rem; border-radius:4px; border:1px solid #22c55e; background:#f0fdf4; color:#166534; cursor:pointer; white-space:nowrap;">
+          ✓ Add
+        </button>
+        <button type="button" onclick="document.getElementById('${uid}').remove()"
+                style="font-size:0.75rem; padding:0.3rem 0.7rem; border-radius:4px; border:1px solid #e5e9f0; background:#fff; color:#8896b0; cursor:pointer;">
+          Skip
+        </button>
+      </div>`;
+    card._sigData = sig;
+    container.appendChild(card);
+  });
+}
+
+function acceptSuggestionById(uid, btn) {
+  const card = document.getElementById(uid);
+  if (!card) return;
+  injectSignal(card._sigData);
+  card.style.opacity = '0.5';
+  card.style.pointerEvents = 'none';
+  btn.textContent = '✓ Added';
+  btn.style.background = '#dcfce7';
+}
+
 function applyRegion(btn) {
   const form = document.getElementById('campaign-form');
   form.querySelector('[name="region.label"]').value          = btn.dataset.label;
